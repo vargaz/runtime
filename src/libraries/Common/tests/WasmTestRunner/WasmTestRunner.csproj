@@ -1,11 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <TargetFrameworks>$(NetCoreAppCurrent)</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="WasmTestRunner.cs" />
     <PackageReference Include="Microsoft.DotNet.XHarness.Tests.Runners" Version="$(MicrosoftDotNetXHarnessTestsRunnersVersion)" />
+    <PackageReference Include="xunit.console" Version="2.4.1" />
+    <PackageReference Include="xunit.core" Version="2.4.1" />
   </ItemGroup>
 </Project>

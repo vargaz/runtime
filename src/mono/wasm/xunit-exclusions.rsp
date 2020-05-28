@@ -1,0 +1,62 @@
+# Common
+# Threads
+-nomethod System.Net.Test.Common.VirtualNetworkTest.VirtualNetwork_MultiThreadIntegrityTest_Ok
+-nomethod System.Net.Test.Common.VirtualNetworkStreamTest.VirtualNetworkStream_MultiThreadIntegrityTest_Ok
+
+# System.Buffers
+# RemoteTestExecutor
+-nomethod System.Buffers.ArrayPool.Tests.CollectionTests.BuffersAreCollectedWhenStale
+-nomethod System.Buffers.ArrayPool.Tests.ArrayPoolUnitTests.RentBufferFiresRentedDiagnosticEvent
+-nomethod System.Buffers.ArrayPool.Tests.ArrayPoolUnitTests.ReturnBufferFiresDiagnosticEvent
+-nomethod System.Buffers.ArrayPool.Tests.ArrayPoolUnitTests.RentingNonExistentBufferFiresAllocatedDiagnosticEvent
+-nomethod System.Buffers.ArrayPool.Tests.ArrayPoolUnitTests.RentingBufferOverConfiguredMaximumSizeFiresDiagnosticEvent
+-nomethod System.Buffers.ArrayPool.Tests.ArrayPoolUnitTests.RentingManyBuffersFiresExpectedDiagnosticEvents
+# Threads
+-nomethod System.Buffers.ArrayPool.Tests.ArrayPoolUnitTests.UsePoolInParallel
+
+# System.Numerics.Vectors
+-nomethod System.Numerics.Tests.GenericVectorTests.ConstructorWithUnsupportedTypes_Guid
+-nomethod System.Numerics.Tests.GenericVectorTests.ConstructorWithUnsupportedTypes_DateTime
+-nomethod System.Numerics.Tests.GenericVectorTests.ConstructorWithUnsupportedTypes_Char
+
+# System.Collections.Immutable
+-nomethod System.Collections.Immutable.Tests.ImmutableArrayTest.IStructuralEquatableGetHashCode
+-nomethod System.Collections.Immutable.Tests.ImmutableArrayTest.AddThreadSafety
+-nomethod System.Collections.Immutable.Tests.ImmutableInterlockedTests.Update_HighConcurrency
+-nomethod System.Collections.Immutable.Tests.ImmutableInterlockedTests.UpdateArray_HighConcurrency
+-nomethod System.Collections.Immutable.Tests.ImmutableInterlockedTests.Update_CarefullyScheduled
+-nomethod System.Collections.Immutable.Tests.ImmutableInterlockedTests.UpdateArray_CarefullyScheduled
+
+# System.Collections.NonGeneric
+-nomethod System.Collections.Tests.ArrayList_SyncRootTests.GetSyncRoot
+-nomethod System.Collections.Tests.ArrayList_SynchronizedTests.Synchronized_ArrayList
+-nomethod System.Collections.Tests.ArrayList_SynchronizedTests.Synchronized_IList
+-nomethod System.Collections.Tests.ArrayListBasicTests.IGenericSharedAPI_SerializeDeserialize
+-nomethod System.Collections.Tests.HashtableBasicTests.IGenericSharedAPI_SerializeDeserialize
+-nomethod System.Collections.Tests.CaseInsensitiveComparerTests.Ctor_CultureInfo_Compare_TurkishI
+-nomethod System.Collections.Tests.ComparerTests.DefaultInvariant_Compare
+-nomethod System.Collections.Tests.ComparerTests.Default_Compare
+-nomethod System.Collections.Tests.Hashtable_ItemThreadSafetyTests.GetItem_ThreadSafety
+-nomethod System.Collections.Tests.Hashtable_SynchronizedTests.SynchronizedThreadSafety
+-nomethod System.Collections.Tests.Hashtable_SyncRootTests.SyncRoot
+-nomethod System.Collections.Tests.Queue_SyncRootTests.SyncRoot
+-nomethod System.Collections.Tests.Queue_SynchronizedTests.SynchronizedEnqueue
+-nomethod System.Collections.Tests.SortedListTests.Item_Get_DifferentCulture
+-nomethod System.Collections.Tests.SortedList_SyncRootTests.GetSyncRootBasic
+-nomethod System.Collections.Tests.Stack_SyncRootTests.GetSyncRootBasic
+-nomethod System.Collections.Tests.CaseInsensitiveHashCodeProviderTests.Ctor_CultureInfo_GetHashCodeCompare_TurkishI
+-nomethod System.Collections.Tests.CaseInsensitiveHashCodeProviderTests.Default_Compare_TurkishI
+
+# System.Collections
+-nomethod System.Collections.Tests.StructuralComparisonsTests.StructuralComparer_Compare
+-nomethod System.Collections.Tests.Dictionary_Tests.ComparerSerialization
+
+# General
+-nomethod *.IGenericSharedAPI_SerializeDeserialize
+-nomethod *.EqualityComparer_SerializationRoundtrip
+-nomethod System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_BadIntEqualityComparer.HashSet_Generic_Constructor_Capacity_ToNextPrimeNumber
+
+# System.Runtime.Extensions
+-nomethod System.Tests.EnvironmentTests.GetLogicalDrives_Windows_MatchesExpectedLetters
+# crash in getpwuid_r
+-nomethod System.Tests.EnvironmentUserName.*

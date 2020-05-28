@@ -120,6 +120,7 @@
       MainAssembly="$(PublishDir)\WasmTestRunner.dll"
       MainJS="$(MonoProjectRoot)\wasm\runtime-test.js"
       ExtraAssemblies="$(PublishDir)\$(AssemblyName).dll"
+      ExtraFiles="$(MonoProjectRoot)\wasm\xunit-exclusions.rsp"
       AssemblySearchPaths="@(AssemblySearchPaths)"/>
   </Target>
 
