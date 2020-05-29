@@ -45,7 +45,7 @@ class Discoverer : XunitTestFrameworkDiscoverer
 	IEnumerator<ITestClass> TestClassesEnumerator;
 	IMessageSink Sink;
 	ITestFrameworkDiscoveryOptions DiscoveryOptions;
-	IXunitTestCollectionFactory TestCollectionFactory;
+	new IXunitTestCollectionFactory TestCollectionFactory;
 
 	public Discoverer(IAssemblyInfo assemblyInfo,
 					  ISourceInformationProvider sourceProvider,
@@ -170,8 +170,27 @@ class WasmRunner : IMessageSink
 
 	public int nrun, nfail, nskipped, nfiltered;
 
+    bool IsFilteredByTraits (Xunit.Abstractions.IAttributeInfo itrait_attr) {
+        foreach (var disc_attr in itrait_attr.GetCustomAttributes (typeof (TraitDiscovererAttribute))) {
+            //Console.WriteLine (disc_attr.GetType ());
+            var args = disc_attr.GetConstructorArguments ().ToArray ();
+            var disc_type_name = (string)args[0];
+            var disc_assembly_name = (string)args[1];
+            var disc_assembly = Assembly.Load (new AssemblyName (disc_assembly_name));
+            if (disc_assembly != null) {
+                var disc_type = disc_assembly.GetType (disc_type_name);
+                var discoverer = (ITraitDiscoverer)Activator.CreateInstance (disc_type);
+                var traits = discoverer.GetTraits (itrait_attr);
+                foreach (var trait in traits) {
+                    if (trait.Key == "category" && trait.Value == "failing")
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+
 	public int Run () {
-		int state;
 		int tc_index;
 
 		Console.WriteLine ("Discovering tests...");
@@ -185,11 +204,9 @@ class WasmRunner : IMessageSink
 		}
 
 		Console.WriteLine ("Running " +  testCases.Count + " tests...");
-		state = 3;
 		tc_index = 0;
 
 		Console.WriteLine (".");
-		int ncases = 0;
 		string last_name = "";
 		while (true) {
 			if (tc_index == testCases.Count)
@@ -203,22 +220,19 @@ class WasmRunner : IMessageSink
 				continue;
 			}
 
-			// var itrait_attrs = tc.TestMethod.Method.GetCustomAttributes(typeof(ITraitAttribute));
-			// // FIXME:
-			// if (itrait_attrs.Count () > 0) {
-			// 	Console.WriteLine ("SKIP (ITraitAttribute): " + tc.DisplayName);
-			// 	nfiltered ++;
-			// 	continue;
-			// }
-			/*
-			foreach (var attr in itrait_attrs) {
-				Console.WriteLine (attr);
-				foreach (var disc_attr in attr.GetCustomAttributes (typeof (TraitDiscovererAttribute))) {
-					Console.WriteLine (disc_attr);
+            bool class_filtered = tc.TestMethod.TestClass.Class.GetCustomAttributes (typeof (ITraitAttribute)).Any (attr => IsFilteredByTraits (attr));
+            if (class_filtered) {
+                Console.WriteLine ("SKIP (class ITraitAttribute): " + tc.DisplayName);
+                nfiltered ++;
+                continue;
+            }
 
-				}
-			}
-			*/
+            bool method_filtered = tc.TestMethod.Method.GetCustomAttributes (typeof (ITraitAttribute)).Any (attr => IsFilteredByTraits (attr));
+            if (method_filtered) {
+                Console.WriteLine ("SKIP (ITraitAttribute): " + tc.DisplayName);
+                nfiltered ++;
+                continue;
+            }
 
 			var method = (tc.Method as ReflectionMethodInfo).MethodInfo;
 
