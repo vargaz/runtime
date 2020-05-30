@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -287,9 +288,15 @@ class WasmRunner : IMessageSink
 								dataRow [i] = ConvertArg (dataRow [i], pars [i].ParameterType);
 							method.Invoke (obj, BindingFlags.Default, null, dataRow, null);
 						}
+					} catch (TargetInvocationException ex) {
+                        var innerEx = ex.InnerException;
+                        if (innerEx.GetType ().Name != "SkipTestException") {
+                            Console.WriteLine ("FAIL: " + tc.DisplayName + " " + innerEx);
+                            failed = true;
+                        }
 					} catch (Exception ex) {
-						Console.WriteLine ("FAIL: " + tc.DisplayName + " " + ex);
-						failed = true;
+                        Console.WriteLine ("FAIL: " + tc.DisplayName + " " + ex);
+                        failed = true;
 					}
 				}
 				if (failed) {
@@ -326,6 +333,12 @@ class WasmRunner : IMessageSink
 						}
 					}
 					method.Invoke (obj, args);
+                } catch (TargetInvocationException ex) {
+                    var innerEx = ex.InnerException;
+                    if (innerEx.GetType ().Name != "SkipTestException") {
+                        Console.WriteLine ("FAIL: " + tc.DisplayName + " " + innerEx);
+                        nfail ++;
+                    }
 				} catch (Exception ex) {
 					Console.WriteLine ("FAIL: " + tc.DisplayName);
 					Console.WriteLine (ex);
@@ -353,6 +366,10 @@ public class XunitDriver
 	static WasmRunner testRunner;
 
 	static int Main (String[] args) {
+        ProcessModule mainModule = Process.GetCurrentProcess().MainModule;
+        Console.WriteLine ("MM: " + mainModule);
+
+        //Console.WriteLine (RuntimeInformation.IsOSPlatform(OSPlatform.Create("BROWSER")));
 		// Process rsp files
 		// FIXME: This doesn't work with wasm
 		/*
