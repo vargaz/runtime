@@ -27,6 +27,12 @@
       <GenerateSource>true</GenerateSource>
       <ClassName>System.SR</ClassName>
     </EmbeddedResource>
+    <EmbeddedResource Include="$(BclSourcesRoot)\resources\collation.core.bin">
+	  <LogicalName>collation.core.bin</LogicalName>
+	</EmbeddedResource>
+    <EmbeddedResource Include="$(BclSourcesRoot)\resources\collation.tailoring.bin">
+	  <LogicalName>collation.tailoring.bin</LogicalName>
+	</EmbeddedResource>
   </ItemGroup>
 
   <PropertyGroup>
@@ -313,6 +319,17 @@
       <Compile Include="$(BclSourcesRoot)\Mono\SafeStringMarshal.cs" />
       <Compile Include="$(BclSourcesRoot)\Mono\SafeGPtrArrayHandle.cs" />
       <Compile Include="$(BclSourcesRoot)\System\TypeSpec.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\CodePointIndexer.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\MSCompatUnicodeTable.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\MSCompatUnicodeTableUtil.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\SimpleCollator.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\SortKey.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\SortKeyBuffer.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\Normalization.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\Globalization\Unicode\NormalizationTableUtil.cs" />
   </ItemGroup>
 
   <Import Project="$(LibrariesProjectRoot)\System.Private.CoreLib\src\System.Private.CoreLib.Shared.projitems" Label="Shared" />

@@ -9,6 +9,7 @@ namespace System.Globalization
 {
     internal static partial class Normalization
     {
+#if !MONO
         internal static bool IsNormalized(string strInput, NormalizationForm normalizationForm)
         {
             if (GlobalizationMode.Invariant)
@@ -36,5 +37,6 @@ namespace System.Globalization
                 NlsNormalize(strInput, normalizationForm) :
                 IcuNormalize(strInput, normalizationForm);
         }
+#endif
     }
 }

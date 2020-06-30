@@ -609,7 +609,12 @@ namespace System.Globalization
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void PopulateIsAsciiCasingSameAsInvariant()
         {
+#if MONO
+			// FIXME: Infinite recursion
+            bool compareResult = true;
+#else
             bool compareResult = CultureInfo.GetCultureInfo(_textInfoName).CompareInfo.Compare("abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", CompareOptions.IgnoreCase) == 0;
+#endif
             _isAsciiCasingSameAsInvariant = (compareResult) ? Tristate.True : Tristate.False;
         }
 

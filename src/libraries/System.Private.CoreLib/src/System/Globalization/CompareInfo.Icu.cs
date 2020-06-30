@@ -8,8 +8,39 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
+#if MONO
+using Mono.Globalization.Unicode;
+#endif
+
 namespace System.Globalization
 {
+#if MONO
+    interface ISimpleCollator
+    {
+        SortKey GetSortKey (string source, CompareOptions options);
+
+        int Compare (string s1, string s2);
+
+        int Compare (string s1, int idx1, int len1, string s2, int idx2, int len2, CompareOptions options);
+
+        bool IsPrefix (string src, string target, CompareOptions opt);
+
+        bool IsSuffix (string src, string target, CompareOptions opt);
+
+        int IndexOf (string s, string target, int start, int length, CompareOptions opt);
+
+        int IndexOf (string s, char target, int start, int length, CompareOptions opt);
+
+        int LastIndexOf (string s, string target, CompareOptions opt);
+
+        int LastIndexOf (string s, string target, int start, int length, CompareOptions opt);
+
+        int LastIndexOf (string s, char target, CompareOptions opt);
+
+        int LastIndexOf (string s, char target, int start, int length, CompareOptions opt);
+    }
+#endif
+
     public partial class CompareInfo
     {
         [NonSerialized]
@@ -165,20 +196,48 @@ namespace System.Globalization
             }
         }
 
+#if MONO
+        [NonSerialized]
+        ISimpleCollator? collator;
+
+        // Maps culture IDs to SimpleCollator objects
+		static Dictionary<string, ISimpleCollator> collators = new Dictionary<string, ISimpleCollator> (StringComparer.Ordinal);
+
+        ISimpleCollator GetCollator ()
+        {
+            if (collator != null)
+                return collator!;
+
+            lock (collators) {
+                if (!collators.TryGetValue (_sortName, out collator)) {
+					collator = new SimpleCollator (CultureInfo.GetCultureInfo (m_name));
+                    collators [_sortName] = collator;
+                }
+            }
+
+            return collator!;
+        }
+#endif
+
         private unsafe int IcuCompareString(ReadOnlySpan<char> string1, ReadOnlySpan<char> string2, CompareOptions options)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert(!GlobalizationMode.UseNls);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
+            //System.Diagnostics.DebugProvider.WriteCore (new string ());
+
+#if MONO
+            return GetCollator ().Compare (new String (string1), 0, string1.Length, new String (string2), 0, string2.Length, options);
+#else
             // GetReference may return nullptr if the input span is defaulted. The native layer handles
             // this appropriately; no workaround is needed on the managed side.
-
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
             fixed (char* pString2 = &MemoryMarshal.GetReference(string2))
             {
                 return Interop.Globalization.CompareString(_sortHandle, pString1, string1.Length, pString2, string2.Length, options);
             }
+#endif
         }
 
         private unsafe int IcuIndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr, bool fromBeginning)

@@ -467,7 +467,7 @@ namespace System.Reflection
         private extern bool GetManifestResourceInfoInternal(string name, ManifestResourceInfo info);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern IntPtr /* byte* */ GetManifestResourceInternal(string name, out int size, out Module module);
+        internal extern IntPtr /* byte* */ GetManifestResourceInternal(string name, out int size, out Module module);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern Module GetManifestModuleInternal();
