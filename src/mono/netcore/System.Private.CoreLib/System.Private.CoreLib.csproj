@@ -39,6 +39,9 @@
     <NoWarn>$(NoWarn),0419,0649</NoWarn>
     <Nullable>enable</Nullable>
 
+    <!-- Disable xml comment warnings -->
+    <NoWarn>$(NoWarn),CS1574;CS1587</NoWarn>
+
     <!-- Ignore all previous constants since SPCL is sensitive to what is defined and the Sdk adds some by default -->
     <DefineConstants>MONO;NETCOREAPP;SYSTEM_PRIVATE_CORELIB</DefineConstants>
     <DisableImplicitConfigurationDefines>true</DisableImplicitConfigurationDefines>
@@ -259,6 +262,10 @@
       <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.Mono.cs" />
       <Compile Include="$(BclSourcesRoot)\System\Threading\LowLevelLock.cs" />
       <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.Mono.cs" />
+      <Compile Include="$(BclSourcesRoot)\System\Threading\WaitSubsystem.HandleManager.Unix.cs" />
+      <Compile Include="$(BclSourcesRoot)\System\Threading\WaitSubsystem.ThreadWaitInfo.Unix.cs" />
+      <Compile Include="$(BclSourcesRoot)\System\Threading\WaitSubsystem.Unix.cs" />
+      <Compile Include="$(BclSourcesRoot)\System\Threading\WaitSubsystem.WaitableObject.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true' or '$(TargetsBrowser)' == 'true'">
       <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeWaitHandle.Unix.Mono.cs" />

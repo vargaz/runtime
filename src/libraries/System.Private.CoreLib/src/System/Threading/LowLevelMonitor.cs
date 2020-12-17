@@ -90,6 +90,19 @@ namespace System.Threading
             SetOwnerThreadToCurrent();
         }
 
+        public bool Wait(int timeoutMilliseconds)
+        {
+            Debug.Assert(timeoutMilliseconds >= -1);
+            // FIXME:
+            throw new NotImplementedException();
+            /*
+            ResetOwnerThread();
+            bool waitResult = WaitCore(timeoutMilliseconds);
+            SetOwnerThreadToCurrent();
+            return waitResult;
+            */
+        }
+
         public void Signal_Release()
         {
             ResetOwnerThread();

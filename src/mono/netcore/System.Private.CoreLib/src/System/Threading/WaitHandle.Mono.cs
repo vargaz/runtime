@@ -49,5 +49,12 @@ namespace System.Threading
         // FIXME: Move to shared
         internal static int WaitAny(ReadOnlySpan<WaitHandle> waitHandles, int millisecondsTimeout) =>
             WaitMultiple(waitHandles, false, millisecondsTimeout);
+
+        internal static void ThrowInvalidHandleException()
+        {
+            var ex = new InvalidOperationException(SR.InvalidOperation_InvalidHandle);
+            ex.HResult = HResults.E_HANDLE;
+            throw ex;
+        }
     }
 }

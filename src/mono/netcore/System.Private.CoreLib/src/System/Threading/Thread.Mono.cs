@@ -175,6 +175,15 @@ namespace System.Threading
             }
         }
 
+        internal WaitSubsystem.ThreadWaitInfo WaitInfo
+        {
+            get
+            {
+                // FIXME:
+                throw new NotImplementedException();
+            }
+        }
+
         public ThreadState ThreadState => GetState(this);
 
         private void Create(ThreadStart start) => SetStartHelper((Delegate)start, 0); // 0 will setup Thread with default stackSize
@@ -330,6 +339,16 @@ namespace System.Threading
             if ((state & ThreadState.Stopped) != 0)
                 throw new ThreadStateException("Thread is dead; state can not be accessed.");
             return state;
+        }
+
+        internal void SetWaitSleepJoinState()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal void ClearWaitSleepJoinState()
+        {
+            throw new NotImplementedException();
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
