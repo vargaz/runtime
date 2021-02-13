@@ -42,7 +42,6 @@
 #include "mono-endian.h"
 #include <mono/metadata/gc-internals.h>
 #include <mono/metadata/mempool-internals.h>
-#include <mono/metadata/security-core-clr.h>
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/verify-internals.h>
 #include <mono/metadata/mono-ptr-array.h>

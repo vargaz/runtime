@@ -112,17 +112,6 @@ mono_security_set_core_clr_platform_callback (MonoCoreClrPlatformCB callback)
 	platform_callback = callback;
 }
 
-/*
- * mono_security_core_clr_is_platform_image:
- *
- *   Return the (cached) boolean value indicating if this image represent platform code
- */
-gboolean
-mono_security_core_clr_is_platform_image (MonoImage *image)
-{
-	return image->core_clr_platform_code;
-}
-
 void
 mono_security_core_clr_check_inheritance (MonoClass *klass)
 {

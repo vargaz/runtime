@@ -37,7 +37,6 @@
 #include <mono/metadata/reflection.h>
 #include <mono/metadata/exception.h>
 #include <mono/metadata/security-manager.h>
-#include <mono/metadata/security-core-clr.h>
 #include <mono/metadata/attrdefs.h>
 #include <mono/metadata/gc-internals.h>
 #include <mono/metadata/mono-debug.h>

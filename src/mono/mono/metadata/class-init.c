@@ -17,7 +17,6 @@
 #include <mono/metadata/gc-internals.h>
 #include <mono/metadata/object-internals.h>
 #include <mono/metadata/profiler-private.h>
-#include <mono/metadata/security-core-clr.h>
 #include <mono/metadata/security-manager.h>
 #include <mono/metadata/verify-internals.h>
 #include <mono/metadata/abi-details.h>

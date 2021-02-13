@@ -41,7 +41,6 @@
 #include <mono/metadata/class-internals.h>
 #include <mono/metadata/assembly.h>
 #include <mono/metadata/object-internals.h>
-#include <mono/metadata/security-core-clr.h>
 #include <mono/metadata/verify.h>
 #include <mono/metadata/image-internals.h>
 #include <mono/metadata/loaded-images-internals.h>
@@ -1476,8 +1475,6 @@ do_mono_image_open (MonoAssemblyLoadContext *alc, const char *fname, MonoImageOp
 	image->metadata_only = metadata_only;
 	image->load_from_context = load_from_context;
 	image->ref_count = 1;
-	/* if MONO_SECURITY_MODE_CORE_CLR is set then determine if this image is platform code */
-	image->core_clr_platform_code = mono_security_core_clr_determine_platform_image (image);
 	image->alc = alc;
 	return do_mono_image_load (image, status, care_about_cli, care_about_pecoff);
 }
@@ -1546,24 +1543,6 @@ mono_image_loaded (const char *name)
 	result = mono_image_loaded_internal (mono_domain_default_alc (domain), name);
 	MONO_EXIT_GC_UNSAFE;
 	return result;
-}
-
-typedef struct {
-	MonoImage *res;
-	const char* guid;
-} GuidData;
-
-static void
-find_by_guid (gpointer key, gpointer val, gpointer user_data)
-{
-	GuidData *data = (GuidData *)user_data;
-	MonoImage *image;
-
-	if (data->res)
-		return;
-	image = (MonoImage *)val;
-	if (strcmp (data->guid, mono_image_get_guid (image)) == 0)
-		data->res = image;
 }
 
 static MonoImage *

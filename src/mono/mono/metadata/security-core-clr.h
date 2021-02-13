@@ -59,7 +59,6 @@ extern MonoSecurityCoreCLRLevel mono_security_core_clr_class_level (MonoClass *k
 extern MonoSecurityCoreCLRLevel mono_security_core_clr_field_level (MonoClassField *field, gboolean with_class_level);
 extern MonoSecurityCoreCLRLevel mono_security_core_clr_method_level (MonoMethod *method, gboolean with_class_level);
 
-extern gboolean mono_security_core_clr_is_platform_image (MonoImage *image);
 extern gboolean mono_security_core_clr_determine_platform_image (MonoImage *image);
 
 MONO_API gboolean mono_security_core_clr_require_elevated_permissions (void);

@@ -6,7 +6,6 @@
 #ifndef __MONO_METADATA_ICALL_DECL_H__
 #define __MONO_METADATA_ICALL_DECL_H__
 
-#include "appdomain-icalls.h"
 #include "class.h"
 #include "environment.h"
 #include "file-mmap.h"
@@ -19,9 +18,7 @@
 #include "object-forward.h"
 #include "object-internals.h"
 #include "reflection.h"
-#include "security-core-clr.h"
 #include "security-manager.h"
-#include "security.h"
 #include "string-icalls.h"
 #include "mono/utils/mono-digest.h"
 #include "mono/utils/mono-forward-internal.h"
@@ -31,6 +28,14 @@
 #include "w32semaphore.h"
 #include "w32socket.h"
 #include "mono/utils/mono-proclib.h"
+
+#include <mono/metadata/object.h>
+#include <mono/metadata/object-internals.h>
+#include <mono/utils/mono-compiler.h>
+#include <mono/utils/mono-error.h>
+#include <mono/utils/mono-publib.h>
+#include <mono/metadata/icalls.h>
+#include "reflection-internals.h"
 
 /* From MonoProperty.cs */
 typedef enum {

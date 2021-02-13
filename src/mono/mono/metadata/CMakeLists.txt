@@ -63,7 +63,6 @@ endif()
 set(metadata_common_sources
     appdomain.c
     domain.c
-    appdomain-icalls.h
     assembly.c
     assembly-internals.h
     cil-coff.h
@@ -139,7 +138,6 @@ set(metadata_common_sources
     mono-ptr-array.h
     mono-route.c
     monitor.h
-    number-ms.h
     object.c
     object-forward.h
     object-internals.h
@@ -152,7 +150,6 @@ set(metadata_common_sources
     profiler.c
     profiler-private.h
     runtime.c
-    security.h
     security-core-clr.c
     security-core-clr.h
     security-manager.h

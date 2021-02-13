@@ -12,7 +12,6 @@
 #include <mono/metadata/class-init-internals.h>
 #include <mono/metadata/class-internals.h>
 #include <mono/metadata/debug-helpers.h>
-#include <mono/metadata/security-core-clr.h>
 #include <mono/metadata/security-manager.h>
 #include <mono/utils/mono-logger-internals.h>
 #include <mono/utils/unlocked.h>
