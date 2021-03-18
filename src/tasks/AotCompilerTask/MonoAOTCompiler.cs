@@ -133,6 +133,11 @@ public class MonoAOTCompiler : Microsoft.Build.Utilities.Task
     /// </summary>
     public string? LLVMDebug { get; set; } = "nodebug";
 
+    /// <summary>
+    /// If true, don't run the AOT compiler, just set output properties
+    /// </summary>
+    public bool DryRun { get; set; }
+
     [Output]
     public string[]? FileWrites { get; private set; }
 
@@ -374,6 +379,9 @@ public class MonoAOTCompiler : Microsoft.Build.Utilities.Task
             aotArgs.Add($"profile={AotProfilePath},profile-only");
         }
 
+        aotAssembly.SetMetadata("AotArgs", string.Join(",", aotArgs));
+        aotAssembly.SetMetadata("ProcessArgs", string.Join(" ", processArgs));
+
         // we need to quote the entire --aot arguments here to make sure it is parsed
         // on Windows as one argument. Otherwise it will be split up into multiple
         // values, which wont work.
@@ -414,6 +422,9 @@ public class MonoAOTCompiler : Microsoft.Build.Utilities.Task
             {"MONO_ENV_OPTIONS", string.Empty} // we do not want options to be provided out of band to the cross compilers
         };
 
+        aotAssembly.SetMetadata("MonoPath", paths);
+
+        if (!DryRun) {
         try
         {
             // run the AOT compiler
@@ -425,6 +436,7 @@ public class MonoAOTCompiler : Microsoft.Build.Utilities.Task
             Log.LogMessage(MessageImportance.Low, ex.ToString());
             Log.LogError($"Precompiling failed for {assembly}: {ex.Message}");
             return false;
+        }
         }
 
         compiledAssemblies.Add(aotAssembly);

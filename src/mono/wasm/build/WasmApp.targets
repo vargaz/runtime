@@ -3,6 +3,8 @@
   <UsingTask TaskName="WasmLoadAssembliesAndReferences" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
   <UsingTask TaskName="PInvokeTableGenerator" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
   <UsingTask TaskName="IcallTableGenerator" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
+  <UsingTask TaskName="Microsoft.WebAssembly.Build.Tasks.RunWithEmSdkEnv" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
+  <UsingTask TaskName="WasmGenerateNinja" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
 
   <!--
       Required public items/properties:
@@ -114,12 +116,14 @@
     <PropertyGroup>
       <!--<AOTMode Condition="'$(AOTMode)' == '' and '$(AOTProfilePath)' != ''">LLVMOnlyInterp</AOTMode>-->
       <AOTMode Condition="'$(AOTMode)' == ''">LLVMOnlyInterp</AOTMode>
+      <AOTDryRun Condition="'$(_WasmNinja)' == 'true'">true</AOTDryRun>
+      <AOTDryRun Condition="'$(_WasmNinja)' != 'true'">false</AOTDryRun>
     </PropertyGroup>
 
     <Error Condition="'$(AOTMode)' == 'llvmonly' and @(_AOT_InternalForceInterpretAssemblies->Count()) > 0"
            Text="Builing in AOTMode=LLVMonly, but found some assemblies marked as _InternalForceInterpret: @(_AOT_InternalForceInterpretAssemblies)" />
 
-    <Message Text="AOT'ing @(_AotInputAssemblies->Count()) assemblies" Importance="High" />
+    <Message Text="AOT'ing @(_AotInputAssemblies->Count()) assemblies" Importance="High" Condition="'$(_WasmNinja)' != 'true'"/>
 
     <!-- Dedup -->
     <PropertyGroup Condition="'$(WasmDedup)' == 'true'">
@@ -157,8 +161,8 @@
       DisableParallelAot="true"
       DedupAssembly="$(_WasmDedupAssembly)"
       LLVMDebug="dwarfdebug"
-      LLVMPath="$(EmscriptenUpstreamBinPath)" >
-
+      LLVMPath="$(EmscriptenUpstreamBinPath)"
+      DryRun="$(AOTDryRun)">
       <Output TaskParameter="CompiledAssemblies" ItemName="_WasmAssembliesInternal" />
       <Output TaskParameter="FileWrites" ItemName="FileWrites" />
     </MonoAOTCompiler>
@@ -431,7 +435,7 @@
      <EmccLDFlags>$(EmccFlags) -s TOTAL_MEMORY=536870912</EmccLDFlags>
    </PropertyGroup>
 
-    <Message Text="Compiling native assets with emcc. This may take a while ..." Importance="High" />
+    <Message Text="Compiling native assets with emcc. This may take a while ..." Importance="High" Condition="'$(_WasmNinja)' != 'true'" />
     <Exec Command='emcc $(EmccCFlags) "%(_WasmObjectsToBuild.Identity)" -c -o "%(_WasmObjectsToBuild.OutputPath)"' EnvironmentVariables="@(EmscriptenEnvVars)" />
     
     <ItemGroup>
@@ -448,9 +452,27 @@
 
     <WriteLinesToFile Lines="@(_EmccLinkerArguments)" File="$(_EmccLinkerResponseFile)" Overwrite="true" />
     <Message Text="Running emcc with @(_EmccLinkerArguments->'%(Identity)', ' ')" Importance="Low" />
-    <Exec Command="emcc &quot;@$(_EmccLinkerResponseFile)&quot;" EnvironmentVariables="@(EmscriptenEnvVars)" />
+    <Exec Command="emcc &quot;@$(_EmccLinkerResponseFile)&quot;" EnvironmentVariables="@(EmscriptenEnvVars)" Condition="'$(_WasmNinja)' != 'true'" />
 
-    <Exec Command='wasm-opt$(_ExeExt) --strip-dwarf "$(_WasmIntermediateOutputPath)dotnet.wasm" -o "$(_WasmIntermediateOutputPath)dotnet.wasm"' Condition="'$(WasmNativeStrip)' == 'true'" IgnoreStandardErrorWarningFormat="true" EnvironmentVariables="@(EmscriptenEnvVars)" />
+    <Exec Command='wasm-opt$(_ExeExt) --strip-dwarf "$(_WasmIntermediateOutputPath)dotnet.wasm" -o "$(_WasmIntermediateOutputPath)dotnet.wasm"' Condition="'$(WasmNativeStrip)' == 'true' and '$(_WasmNinja)' != 'true'" IgnoreStandardErrorWarningFormat="true" EnvironmentVariables="@(EmscriptenEnvVars)" />
+
+    <WasmGenerateNinja
+      BinDir="$(WasmAppDir)"
+      BuildDir="$(_WasmIntermediateOutputPath)"
+      EmsdkPath="$(EMSDK_PATH)"
+      EmccCFlags="$(EmccCFlags)"
+      EmccLDFlags="$(EmccLDFlags)"
+      JSSources="@(_DotnetJSSrcFile)"
+      WasmObjects="@(_WasmObjects)"
+      AOTAssemblies="@(_WasmAssembliesInternal)"
+      AOTCompilerPath="$(MonoAotCrossCompilerPath)"
+      Condition="'$(_WasmNinja)' == 'true'"
+      />
+    <Message Text="NINJA: ninja -C $(_WasmIntermediateOutputPath) $(NinjaArgs)" Importance="High"/>
+    <Exec
+      Command="ninja -C $(_WasmIntermediateOutputPath) $(NinjaArgs)"
+      Condition="'$(_WasmNinja)' == 'true'"
+      />
 
     <ItemGroup>
       <WasmNativeAsset Include="$(_WasmIntermediateOutputPath)dotnet.wasm" />
