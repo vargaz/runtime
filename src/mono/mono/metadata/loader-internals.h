@@ -98,9 +98,14 @@ struct _MonoMemoryManager {
 	// Currently unused, we take the domain lock instead
 	MonoCoopMutex lock;
 
-	MonoMemPool *mp;
+	// Private, don't access directly
+	MonoMemPool *_mp;
 	MonoCodeManager *code_mp;
 	LockFreeMempool *lock_free_mp;
+
+	// Protects access to _mp
+	// Non-coop, non-recursive
+	mono_mutex_t mp_mutex;
 
 	GPtrArray *class_vtable_array;
 	GHashTable *generic_virtual_cases;
@@ -270,6 +275,9 @@ mono_mem_manager_strdup (MonoMemoryManager *memory_manager, const char *s);
 
 void
 mono_mem_manager_free_debug_info (MonoMemoryManager *memory_manager);
+
+gboolean
+mono_mem_manager_mp_contains_addr (MonoMemoryManager *memory_manager, gpointer addr);
 
 G_END_DECLS
 
