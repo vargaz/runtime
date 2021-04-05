@@ -12,7 +12,6 @@
 #include "mono/utils/mono-logger-internals.h"
 
 GENERATE_GET_CLASS_WITH_CACHE (assembly_load_context, "System.Runtime.Loader", "AssemblyLoadContext");
-static GENERATE_GET_CLASS_WITH_CACHE (loader_allocator, "System.Reflection", "LoaderAllocator");
 
 static GSList *alcs;
 static MonoAssemblyLoadContext *default_alc;
@@ -47,27 +46,8 @@ mono_alc_init (MonoAssemblyLoadContext *alc, gboolean collectible)
 	mono_coop_mutex_init (&alc->pinvoke_lock);
 
 	if (collectible) {
-		/*
-		 * Create the LoaderAllocator object which is used to detect whenever there are managed
-		 * references to the ALC.
-		 * FIXME: Every MemoryManager needs one.
-		 */
-		ERROR_DECL (error);
-		/* This is stored in MonoVTable so it has to be pinned */
-		MonoObject *loader_alloc = mono_object_new_pinned (mono_class_get_loader_allocator_class (), error);
-		/* This will keep the object alive until unload has started */
-		mono_error_assert_ok (error);
-		alc->memory_manager->memory_manager.loader_allocator_handle = mono_gchandle_new_internal (loader_alloc, TRUE);
-
-		MonoMethod *method = mono_class_get_method_from_name_checked (mono_class_get_loader_allocator_class (), ".ctor", 1, 0, error);
-		mono_error_assert_ok (error);
-		g_assert (method);
-
-		/* The GC handle pins loader_alloc */
-		gpointer params [1] = { &alc };
-		mono_runtime_invoke_checked (method, loader_alloc, params, error);
-		mono_error_assert_ok (error);
-		mono_error_assert_ok (error);
+		/* Eagerly create the loader alloc object for the main memory manager */
+		mono_mem_manager_get_loader_alloc ((MonoMemoryManager*)alc->memory_manager);
 	}
 }
 
@@ -190,6 +170,10 @@ mono_alc_cleanup (MonoAssemblyLoadContext *alc)
 	alcs_unlock ();
 
 	mono_alc_cleanup_assemblies (alc);
+
+	// FIXME: Do it for every memory manager
+	mono_gchandle_free_internal (alc->memory_manager->memory_manager.loader_allocator_handle);
+	alc->memory_manager->memory_manager.loader_allocator_handle = NULL;
 
 	mono_mem_manager_free_singleton (alc->memory_manager, FALSE);
 	alc->memory_manager = NULL;
@@ -464,16 +448,23 @@ mono_alc_invoke_resolve_using_resolve_satellite_nofail (MonoAssemblyLoadContext 
 MonoBoolean
 ves_icall_System_Reflection_LoaderAllocatorScout_Destroy (gpointer native)
 {
-	MonoAssemblyLoadContext *alc = (MonoAssemblyLoadContext *)native;
+	MonoMemoryManager *mem_manager = (MonoMemoryManager *)native;
 
-	MonoGCHandle loader_handle = alc->memory_manager->memory_manager.loader_allocator_handle;
+	MonoGCHandle loader_handle = mem_manager->loader_allocator_handle;
 	if (mono_gchandle_get_target_internal (loader_handle))
 		return FALSE;
+
+	// FIXME:
+	g_assert (!mem_manager->is_generic);
+
+	MonoAssemblyLoadContext *alc = ((MonoSingletonMemoryManager*)mem_manager)->alc;
+	g_assert (alc);
 
 	/*
 	 * The weak handle is NULL, meaning the managed LoaderAllocator object is dead, we can
 	 * free the native side.
 	 */
+
 	return TRUE;
 }
 

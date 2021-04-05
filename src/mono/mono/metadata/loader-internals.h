@@ -281,6 +281,9 @@ mono_mem_manager_free_debug_info (MonoMemoryManager *memory_manager);
 gboolean
 mono_mem_manager_mp_contains_addr (MonoMemoryManager *memory_manager, gpointer addr);
 
+MonoGCHandle
+mono_mem_manager_get_loader_alloc (MonoMemoryManager *mem_manager);
+
 G_END_DECLS
 
 #endif

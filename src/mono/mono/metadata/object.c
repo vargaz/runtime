@@ -2175,9 +2175,10 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 			MONO_GC_REGISTER_ROOT_IF_MOVING (vt->type, MONO_ROOT_SOURCE_REFLECTION, vt, "Reflection Type Object");
 	}
 
-	if (mem_manager->loader_allocator_handle)
+	MonoGCHandle loader_alloc_handle = mono_mem_manager_get_loader_alloc (mem_manager);
+	if (loader_alloc_handle)
 		/* Allocated pinned */
-		vt->loader_alloc = mono_gchandle_get_target_internal (mem_manager->loader_allocator_handle);
+		vt->loader_alloc = mono_gchandle_get_target_internal (loader_alloc_handle);
 
 	/*  class_vtable_array keeps an array of created vtables
 	 */
