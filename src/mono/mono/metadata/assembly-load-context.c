@@ -183,6 +183,9 @@ mono_alc_cleanup (MonoAssemblyLoadContext *alc)
 	alc->pinvoke_scopes = NULL;
 	mono_coop_mutex_destroy (&alc->pinvoke_lock);
 
+	g_free (alc->name);
+	alc->name = NULL;
+
 	// TODO: alc unloaded profiler event
 }
 
@@ -218,7 +221,8 @@ mono_alc_memory_managers_unlock (MonoAssemblyLoadContext *alc)
 }
 
 gpointer
-ves_icall_System_Runtime_Loader_AssemblyLoadContext_InternalInitializeNativeALC (gpointer this_gchandle_ptr, MonoBoolean is_default_alc, MonoBoolean collectible, MonoError *error)
+ves_icall_System_Runtime_Loader_AssemblyLoadContext_InternalInitializeNativeALC (gpointer this_gchandle_ptr, const char *name,
+																				 MonoBoolean is_default_alc, MonoBoolean collectible, MonoError *error)
 {
 	/* If the ALC is collectible, this_gchandle is weak, otherwise it's strong. */
 	MonoGCHandle this_gchandle = (MonoGCHandle)this_gchandle_ptr;
@@ -229,8 +233,12 @@ ves_icall_System_Runtime_Loader_AssemblyLoadContext_InternalInitializeNativeALC 
 		g_assert (alc);
 		if (!alc->gchandle)
 			alc->gchandle = this_gchandle;
-	} else
+	} else {
 		alc = mono_alc_create_individual (this_gchandle, collectible, error);
+	}
+
+	if (name)
+		alc->name = g_strdup (name);
 
 	return alc;
 }
