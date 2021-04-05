@@ -336,6 +336,7 @@ struct MonoVTable {
 	MonoGCDescriptor gc_descr;
 	MonoDomain *domain;  /* each object/vtable belongs to exactly one domain */
 	gpointer    type; /* System.Type type for klass */
+	gpointer    loader_alloc; /* LoaderAllocator object for objects in collectible alcs */
 	guint8     *interface_bitmap;
 	guint32     max_interface_id;
 	guint8      rank;

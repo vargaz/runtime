@@ -1911,7 +1911,6 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 
 	MonoVTable *vt;
 	MonoClassField *field;
-	MonoMemoryManager *memory_manager;
 	char *t;
 	int i, vtable_slots;
 	size_t imt_table_bytes;
@@ -2000,6 +1999,8 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 	UnlockedIncrement (&mono_stats.used_class_count);
 	UnlockedAdd (&mono_stats.class_vtable_size, vtable_size);
 
+	MonoMemoryManager *mem_manager = m_class_get_mem_manager (klass);
+
 	interface_offsets = alloc_vtable (klass, vtable_size, imt_table_bytes);
 	vt = (MonoVTable*) ((char*)interface_offsets + imt_table_bytes);
 	/* If on interp, skip the interp interface table */
@@ -2050,8 +2051,6 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 		vt->has_static_fields = TRUE;
 		UnlockedAdd (&mono_stats.class_static_data_size, class_size);
 	}
-
-	MonoMemoryManager *mem_manager = m_class_get_mem_manager (klass);
 
 	iter = NULL;
 	while ((field = mono_class_get_fields_internal (klass, &iter))) {
@@ -2176,12 +2175,15 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 			MONO_GC_REGISTER_ROOT_IF_MOVING (vt->type, MONO_ROOT_SOURCE_REFLECTION, vt, "Reflection Type Object");
 	}
 
+	if (mem_manager->loader_allocator_handle)
+		/* Allocated pinned */
+		vt->loader_alloc = mono_gchandle_get_target_internal (mem_manager->loader_allocator_handle);
+
 	/*  class_vtable_array keeps an array of created vtables
 	 */
-	memory_manager = mono_mem_manager_get_ambient ();
-	mono_mem_manager_lock (memory_manager);
-	g_ptr_array_add (memory_manager->class_vtable_array, vt);
-	mono_mem_manager_unlock (memory_manager);
+	mono_mem_manager_lock (mem_manager);
+	g_ptr_array_add (mem_manager->class_vtable_array, vt);
+	mono_mem_manager_unlock (mem_manager);
 
 	/*
 	 * Store the vtable in klass_vtable.

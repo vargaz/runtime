@@ -29,6 +29,12 @@ sgen_vtable_get_descriptor (GCVTable vtable)
 	return (SgenDescriptor)vtable->gc_descr;
 }
 
+static inline GCObject*
+sgen_vtable_get_class_obj (GCVTable vtable)
+{
+	return (GCObject*)vtable->loader_alloc;
+}
+
 typedef struct _SgenClientThreadInfo SgenClientThreadInfo;
 struct _SgenClientThreadInfo {
 	MonoThreadInfo info;
