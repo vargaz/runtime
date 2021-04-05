@@ -119,6 +119,9 @@ struct _MonoMemoryManager {
 	/* Information maintained by the execution engine */
 	gpointer runtime_info;
 
+	// Handle pointing to the corresponding LoaderAllocator object
+	MonoGCHandle loader_allocator_handle;
+
 	// !!! REGISTERED AS GC ROOTS !!!
 	// Hashtables for Reflection handles
 	MonoGHashTable *type_hash;
