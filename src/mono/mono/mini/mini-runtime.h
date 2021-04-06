@@ -78,12 +78,14 @@ get_default_mem_manager (void)
 static inline MonoJitMemoryManager*
 jit_mm_for_method (MonoMethod *method)
 {
-	/*
-	 * Some places might not look up the correct memory manager because of generic instances/generic sharing etc.
-	 * So use the same memory manager everywhere, this is not a problem since we don't support unloading yet.
-	 */
-	//return (MonoJitMemoryManager*)m_method_get_mem_manager (method)->runtime_info;
-	return get_default_jit_mm ();
+	if (!method->is_inflated)
+		return (MonoJitMemoryManager*)m_method_get_mem_manager (method)->runtime_info;
+	else
+		/*
+		 * FIXME: Some places might not look up the correct memory manager because of generic instances/generic sharing etc.
+		 * So use the same memory manager everywhere, this is not a problem since we don't support unloading yet.
+		 */
+		return get_default_jit_mm ();
 }
 
 static inline void
