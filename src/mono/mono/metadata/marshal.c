@@ -2520,6 +2520,7 @@ mono_marshal_get_runtime_invoke_full (MonoMethod *method, gboolean virtual_, gbo
 		if (!res) {
 			MonoMethod *newm;
 			newm = mono_mb_create (mb, csig, sig->param_count + 16, info);
+			((MonoMethodWrapper*)newm)->mem_manager = m_method_get_mem_manager (method);
 
 			mono_marshal_lock ();
 			res = (MonoMethod *)g_hash_table_lookup (sig_cache, sig_key);
