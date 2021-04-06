@@ -363,8 +363,8 @@ mono_mem_manager_get_loader_alloc (MonoMemoryManager *mem_manager)
 	if (!mem_manager->collectible)
 		return NULL;
 
-	if (mem_manager->loader_allocator_handle)
-		return mem_manager->loader_allocator_handle;
+	if (mem_manager->loader_allocator_weak_handle)
+		return mem_manager->loader_allocator_weak_handle;
 
 	/*
 	 * Create the LoaderAllocator object which is used to detect whenever there are managed
@@ -387,13 +387,15 @@ mono_mem_manager_get_loader_alloc (MonoMemoryManager *mem_manager)
 	mono_error_assert_ok (error);
 
 	mono_mem_manager_lock (mem_manager);
-	res = mem_manager->loader_allocator_handle;
+	res = mem_manager->loader_allocator_weak_handle;
 	if (!res) {
 		MonoGCHandle handle = mono_gchandle_new_internal (loader_alloc, TRUE);
 		/* This will keep the object alive until unload has started */
-		mono_memory_barrier ();
 		mem_manager->loader_allocator_handle = handle;
-		res = handle;
+
+		mem_manager->loader_allocator_weak_handle = mono_gchandle_new_weakref_internal (loader_alloc, TRUE);
+		mono_memory_barrier ();
+		res = mem_manager->loader_allocator_weak_handle;
 	} else {
 		/* FIXME: The LoaderAllocator object has a finalizer, which shouldn't execute */
 	}

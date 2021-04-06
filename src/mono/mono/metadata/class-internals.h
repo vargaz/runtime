@@ -94,6 +94,7 @@ struct _MonoMethod {
 struct _MonoMethodWrapper {
 	MonoMethod method;
 	MonoMethodHeader *header;
+	MonoMemoryManager *mem_manager;
 	void *method_data;
 };
 
@@ -336,7 +337,7 @@ struct MonoVTable {
 	MonoGCDescriptor gc_descr;
 	MonoDomain *domain;  /* each object/vtable belongs to exactly one domain */
 	gpointer    type; /* System.Type type for klass */
-	gpointer    loader_alloc; /* LoaderAllocator object for objects in collectible alcs */
+	MonoGCHandle loader_alloc; /* LoaderAllocator object for objects in collectible alcs */
 	guint8     *interface_bitmap;
 	guint32     max_interface_id;
 	guint8      rank;
@@ -1582,8 +1583,13 @@ m_class_alloc0 (MonoClass *klass, guint size)
 static inline MonoMemoryManager*
 m_method_get_mem_manager (MonoMethod *method)
 {
-	// FIXME:
-	return mono_domain_memory_manager (mono_get_root_domain ());
+	if (method->is_inflated)
+		// FIXME:
+		return mono_domain_memory_manager (mono_get_root_domain ());
+	else if (method->wrapper_type && ((MonoMethodWrapper*)method)->mem_manager)
+		return ((MonoMethodWrapper*)method)->mem_manager;
+	else
+		return m_class_get_mem_manager (method->klass);
 }
 
 static inline void *

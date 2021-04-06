@@ -269,11 +269,8 @@ ves_icall_System_Runtime_Loader_AssemblyLoadContext_PrepareForAssemblyLoadContex
 	alc->gchandle = strong_gchandle;
 	mono_gchandle_free_internal (weak_gchandle);
 
-	/* Change the handle to the LoaderAllocator object to a weak handle */
+	/* Free the strong handle so LoaderAllocator can be freed */
 	MonoGCHandle loader_handle = alc->memory_manager->memory_manager.loader_allocator_handle;
-	/* Pinned already */
-	MonoObject *loader = mono_gchandle_get_target_internal (loader_handle);
-	alc->memory_manager->memory_manager.loader_allocator_handle = mono_gchandle_new_weakref_internal (loader, TRUE);
 	mono_gchandle_free_internal (loader_handle);
 }
 
@@ -450,7 +447,7 @@ ves_icall_System_Reflection_LoaderAllocatorScout_Destroy (gpointer native)
 {
 	MonoMemoryManager *mem_manager = (MonoMemoryManager *)native;
 
-	MonoGCHandle loader_handle = mem_manager->loader_allocator_handle;
+	MonoGCHandle loader_handle = mem_manager->loader_allocator_weak_handle;
 	if (mono_gchandle_get_target_internal (loader_handle))
 		return FALSE;
 
@@ -464,7 +461,6 @@ ves_icall_System_Reflection_LoaderAllocatorScout_Destroy (gpointer native)
 	 * The weak handle is NULL, meaning the managed LoaderAllocator object is dead, we can
 	 * free the native side.
 	 */
-
 	return TRUE;
 }
 
