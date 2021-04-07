@@ -373,9 +373,11 @@ mono_mem_manager_get_loader_alloc (MonoMemoryManager *mem_manager)
 
 	/* Try to do most of the construction outside the lock */
 
-	/* This is stored in MonoVTable so it has to be pinned */
 	MonoObject *loader_alloc = mono_object_new_pinned (mono_class_get_loader_allocator_class (), error);
 	mono_error_assert_ok (error);
+
+	/* This will keep the object alive until unload has started */
+	mem_manager->loader_allocator_handle = mono_gchandle_new_internal (loader_alloc, TRUE);
 
 	MonoMethod *method = mono_class_get_method_from_name_checked (mono_class_get_loader_allocator_class (), ".ctor", 1, 0, error);
 	mono_error_assert_ok (error);
@@ -389,13 +391,9 @@ mono_mem_manager_get_loader_alloc (MonoMemoryManager *mem_manager)
 	mono_mem_manager_lock (mem_manager);
 	res = mem_manager->loader_allocator_weak_handle;
 	if (!res) {
-		MonoGCHandle handle = mono_gchandle_new_internal (loader_alloc, TRUE);
-		/* This will keep the object alive until unload has started */
-		mem_manager->loader_allocator_handle = handle;
-
-		mem_manager->loader_allocator_weak_handle = mono_gchandle_new_weakref_internal (loader_alloc, TRUE);
+		res = mono_gchandle_new_weakref_internal (loader_alloc, TRUE);
 		mono_memory_barrier ();
-		res = mem_manager->loader_allocator_weak_handle;
+		mem_manager->loader_allocator_weak_handle = res;
 	} else {
 		/* FIXME: The LoaderAllocator object has a finalizer, which shouldn't execute */
 	}
