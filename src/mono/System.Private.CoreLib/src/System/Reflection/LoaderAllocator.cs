@@ -34,11 +34,16 @@ namespace System.Reflection
     // in a collectible alc has an implicit reference to it, maintained by
     // the GC.
     //
+    [StructLayout(LayoutKind.Sequential)]
     internal sealed class LoaderAllocator
     {
+#region Sync with MonoManagedLoaderAllocator in object-internals.h
 #pragma warning disable CA1823, 414, 169
+        private object[]? m_slots;
+        private int m_nslots;
         private LoaderAllocatorScout m_scout;
 #pragma warning restore CA1823, 414, 169
+#endregion
 
         private LoaderAllocator(IntPtr native)
         {

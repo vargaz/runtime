@@ -247,6 +247,8 @@ mono_mem_manager_alloc (MonoMemoryManager *memory_manager, guint size)
 {
 	void *res;
 
+	g_assert (!memory_manager->frozen);
+
 	alloc_lock (memory_manager);
 #ifndef DISABLE_PERFCOUNTERS
 	mono_atomic_fetch_add_i32 (&mono_perfcounters->loader_bytes, size);
@@ -262,6 +264,8 @@ mono_mem_manager_alloc0 (MonoMemoryManager *memory_manager, guint size)
 {
 	void *res;
 
+	g_assert (!memory_manager->frozen);
+
 	alloc_lock (memory_manager);
 #ifndef DISABLE_PERFCOUNTERS
 	mono_atomic_fetch_add_i32 (&mono_perfcounters->loader_bytes, size);
@@ -276,6 +280,8 @@ char*
 mono_mem_manager_strdup (MonoMemoryManager *memory_manager, const char *s)
 {
 	char *res;
+
+	g_assert (!memory_manager->frozen);
 
 	alloc_lock (memory_manager);
 	res = mono_mempool_strdup (memory_manager->_mp, s);

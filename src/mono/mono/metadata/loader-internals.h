@@ -135,6 +135,7 @@ struct _MonoMemoryManager {
 	gboolean is_generic;
 	// Whether the MemoryManager is in the process of being freed
 	gboolean freeing;
+	gboolean frozen;
 
 	// If taking this with the loader lock, always take this second
 	MonoCoopMutex lock;

@@ -89,6 +89,9 @@ mono_string_to_utf8_internal (MonoMemPool *mp, MonoImage *image, MonoString *s, 
 static char *
 mono_string_to_utf8_mp	(MonoMemPool *mp, MonoString *s, MonoError *error);
 
+static MonoArray*
+mono_array_new_specific_internal (MonoVTable *vtable, uintptr_t n, gboolean pinned, MonoError *error);
+
 /* Class lazy loading functions */
 static GENERATE_GET_CLASS_WITH_CACHE (pointer, "System.Reflection", "Pointer")
 static GENERATE_GET_CLASS_WITH_CACHE (unhandled_exception_event_args, "System", "UnhandledExceptionEventArgs")
@@ -846,8 +849,8 @@ compute_class_bitmap (MonoClass *klass, gsize *bitmap, int size, int offset, int
 			if (field->type->byref)
 				break;
 
-			if (static_fields && field->offset == -1)
-				/* special static */
+			if (static_fields && (field->offset == -1 || field->offset == -2))
+				/* special/collectible static */
 				continue;
 
 			pos = field->offset / TARGET_SIZEOF_VOID_P;
@@ -1807,6 +1810,88 @@ mono_method_add_generic_virtual_invocation (MonoVTable *vtable,
 	mono_loader_unlock ();
 }
 
+/* LOCKING: Assumes the loader lock is held */
+static int
+allocate_loader_alloc_slot (MonoManagedLoaderAllocator *loader_alloc)
+{
+	ERROR_DECL (error);
+	int res;
+
+	if (!loader_alloc->m_slots) {
+		MonoClass *ac = mono_class_create_array (mono_get_object_class (), 1);
+		MonoVTable *vtable = mono_class_vtable_checked (ac, error);
+		mono_error_assert_ok (error);
+
+		/* Allocate pinned */
+		loader_alloc->m_slots = mono_array_new_specific_internal (vtable, 64, TRUE, error);
+	}
+	// FIXME:
+	g_assert (loader_alloc->m_nslots < mono_array_length_internal (loader_alloc->m_slots));
+	res = loader_alloc->m_nslots;
+	loader_alloc->m_nslots ++;
+
+	return res;
+}
+
+static void
+allocate_collectible_static_fields (MonoVTable *vt, MonoMemoryManager *mem_manager)
+{
+	MonoClass *klass = vt->klass;
+	MonoClassField *field;
+	MonoManagedLoaderAllocator *loader_alloc;
+
+	/*
+	 * References in static fields of a collectible alc shouldn't keep the ALC alive.
+	 * This is implemented by storing reference type statics in object arrays in LoaderAllocator.
+	 * Non-reference statics are stored normally.
+	 */
+
+	/* loader_alloc is pinned */
+	loader_alloc = (MonoManagedLoaderAllocator*)mono_gchandle_get_target_internal (vt->loader_alloc);
+	g_assert (loader_alloc);
+
+	mono_loader_lock ();
+
+	gpointer iter = NULL;
+	while ((field = mono_class_get_fields_internal (klass, &iter))) {
+		MonoType *type;
+
+		if (!(field->type->attrs & (FIELD_ATTRIBUTE_STATIC | FIELD_ATTRIBUTE_HAS_FIELD_RVA)))
+			continue;
+		if (field->type->attrs & FIELD_ATTRIBUTE_LITERAL)
+			continue;
+
+		if (field->offset == -1)
+			/* FIXME: special static */
+			g_assert_not_reached ();
+
+		type = mono_type_get_underlying_type (field->type);
+		if (mono_type_is_reference (type)) {
+			int slot = allocate_loader_alloc_slot (loader_alloc);
+			/* The array is pinned so this internal pointer is ok */
+			// FIXME: Stores into this would need gc barriers */
+			gpointer addr = mono_array_addr_internal (loader_alloc->m_slots, void*, slot);
+
+			/* Treat this as a special static field */
+			mono_mem_manager_lock (mem_manager);
+			if (!mem_manager->special_static_fields)
+				mem_manager->special_static_fields = g_hash_table_new (NULL, NULL);
+			g_hash_table_insert (mem_manager->special_static_fields, field, addr);
+			mono_mem_manager_unlock (mem_manager);
+			/* This marks the field as collectible static */
+			field->offset = -2;
+		} else if (mono_type_is_primitive (type)) {
+		} else {
+			MonoClass *fclass = mono_class_from_mono_type_internal (field->type);
+			if (m_class_has_references (fclass))
+				// FIXME:
+				g_assert_not_reached ();
+		}
+	}
+
+	mono_loader_unlock ();
+}
+
 static MonoVTable *mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error);
 
 /**
@@ -2011,6 +2096,7 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 	vt->klass = klass;
 	vt->rank = m_class_get_rank (klass);
 	vt->domain = domain;
+	vt->loader_alloc = mono_mem_manager_get_loader_alloc (mem_manager);
 	if ((vt->rank > 0) || klass == mono_get_string_class ())
 		vt->flags |= MONO_VT_FLAG_ARRAY_OR_STRING;
 	
@@ -2031,8 +2117,10 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 	vt->gc_bits = gc_bits;
 
 	if (class_size) {
-		/* we store the static field pointer at the end of the vtable: vt->vtable [class->vtable_size] */
+		if (vt->loader_alloc && m_class_has_static_refs (klass))
+			allocate_collectible_static_fields (vt, mem_manager);
 		if (m_class_has_static_refs (klass)) {
+			/* we store the static field pointer at the end of the vtable: vt->vtable [class->vtable_size] */
 			MonoGCDescriptor statics_gc_descr;
 			int max_set = 0;
 			gsize default_bitmap [4] = {0};
@@ -2174,8 +2262,6 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 			   domain.c. */
 			MONO_GC_REGISTER_ROOT_IF_MOVING (vt->type, MONO_ROOT_SOURCE_REFLECTION, vt, "Reflection Type Object");
 	}
-
-	vt->loader_alloc = mono_mem_manager_get_loader_alloc (mem_manager);
 
 	/*  class_vtable_array keeps an array of created vtables
 	 */
@@ -2850,6 +2936,12 @@ mono_static_field_get_addr (MonoVTable *vt, MonoClassField *field)
 		gpointer addr = mono_special_static_field_get_offset (field, error);
 		mono_error_assert_ok (error);
 		src = (guint8 *)mono_get_special_static_data (GPOINTER_TO_UINT (addr));
+	} else if (field->offset == -2) {
+		/* Collectible static */
+		ERROR_DECL (error);
+		gpointer addr = mono_special_static_field_get_offset (field, error);
+		mono_error_assert_ok (error);
+		src = (guint8*)addr;
 	} else {
 		src = (guint8*)mono_vtable_get_static_field_data (vt) + field->offset;
 	}

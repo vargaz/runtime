@@ -175,7 +175,8 @@ mono_alc_cleanup (MonoAssemblyLoadContext *alc)
 	mono_gchandle_free_internal (alc->memory_manager->memory_manager.loader_allocator_handle);
 	alc->memory_manager->memory_manager.loader_allocator_handle = NULL;
 
-	mono_mem_manager_free_singleton (alc->memory_manager, FALSE);
+	// FIXME: Change to FALSE
+	mono_mem_manager_free_singleton (alc->memory_manager, TRUE);
 	alc->memory_manager = NULL;
 
 	/*for (int i = 0; i < alc->generic_memory_managers->len; i++) {
@@ -461,6 +462,7 @@ ves_icall_System_Reflection_LoaderAllocatorScout_Destroy (gpointer native)
 	 * The weak handle is NULL, meaning the managed LoaderAllocator object is dead, we can
 	 * free the native side.
 	 */
+
 	return TRUE;
 }
 

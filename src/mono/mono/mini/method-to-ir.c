@@ -9490,11 +9490,14 @@ calli_end:
 				CHECK_TYPELOAD (klass);
 			}
 
-			addr = mono_special_static_field_get_offset (field, cfg->error);
-			CHECK_CFG_ERROR;
-			CHECK_TYPELOAD (klass);
-
 			is_special_static = mono_class_field_is_special_static (field);
+			if (is_special_static) {
+				addr = mono_special_static_field_get_offset (field, cfg->error);
+				CHECK_CFG_ERROR;
+				CHECK_TYPELOAD (klass);
+			} else {
+				addr = NULL;
+			}
 
 			if (is_special_static && ((gsize)addr & 0x80000000) == 0)
 				thread_ins = mono_create_tls_get (cfg, TLS_KEY_THREAD);
