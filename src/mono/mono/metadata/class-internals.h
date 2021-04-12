@@ -405,6 +405,7 @@ struct _MonoMethodInflated {
 	union {
 		MonoMethod method;
 		MonoMethodPInvoke pinvoke;
+		MonoMethodWrapper wrapper;
 	} method;
 	MonoMethod *declaring;		/* the generic method definition. */
 	MonoGenericContext context;	/* The current instantiation */
@@ -1565,7 +1566,10 @@ m_image_alloc0 (MonoImage *image, guint size)
 static inline MonoMemoryManager*
 m_class_get_mem_manager (MonoClass *klass)
 {
-	// FIXME: Generics
+	if (m_class_get_class_kind (klass) == MONO_CLASS_GINST)
+		return (MonoMemoryManager*)mono_class_get_generic_class (klass)->owner;
+	if (m_class_get_rank (klass))
+		return m_class_get_mem_manager (m_class_get_element_class (klass));
 	MonoAssemblyLoadContext *alc = mono_image_get_alc (m_class_get_image (klass));
 	if (alc)
 		return (MonoMemoryManager*)alc->memory_manager;
@@ -1590,8 +1594,7 @@ static inline MonoMemoryManager*
 m_method_get_mem_manager (MonoMethod *method)
 {
 	if (method->is_inflated)
-		// FIXME:
-		return mono_domain_memory_manager (mono_get_root_domain ());
+		return (MonoMemoryManager*)(((MonoMethodInflated*)method)->owner);
 	else if (method->wrapper_type && ((MonoMethodWrapper*)method)->mem_manager)
 		return ((MonoMethodWrapper*)method)->mem_manager;
 	else

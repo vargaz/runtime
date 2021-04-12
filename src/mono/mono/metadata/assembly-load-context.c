@@ -183,8 +183,9 @@ mono_alc_cleanup (MonoAssemblyLoadContext *alc)
 		MonoGenericMemoryManager *memory_manager = (MonoGenericMemoryManager *)alc->generic_memory_managers->pdata [i];
 		mono_mem_manager_free_generic (memory_manager, FALSE);
 	}*/
-	g_ptr_array_free (alc->generic_memory_managers, TRUE);
-	mono_coop_mutex_destroy (&alc->memory_managers_lock);
+	// FIXME:
+	//g_ptr_array_free (alc->generic_memory_managers, TRUE);
+	//mono_coop_mutex_destroy (&alc->memory_managers_lock);
 
 	mono_gchandle_free_internal (alc->gchandle);
 	alc->gchandle = NULL;
@@ -270,9 +271,18 @@ ves_icall_System_Runtime_Loader_AssemblyLoadContext_PrepareForAssemblyLoadContex
 	alc->gchandle = strong_gchandle;
 	mono_gchandle_free_internal (weak_gchandle);
 
+	printf ("UNLOAD1: %s\n", alc->name);
+
 	/* Free the strong handle so LoaderAllocator can be freed */
 	MonoGCHandle loader_handle = alc->memory_manager->memory_manager.loader_allocator_handle;
 	mono_gchandle_free_internal (loader_handle);
+
+	// FIXME: Locking
+	for (int i = 0; i < alc->generic_memory_managers->len; i++) {
+		MonoGenericMemoryManager *mem_manager = (MonoGenericMemoryManager *)alc->generic_memory_managers->pdata [i];
+		loader_handle = mem_manager->memory_manager.loader_allocator_handle;
+		mono_gchandle_free_internal (loader_handle);
+	}
 }
 
 gpointer
@@ -443,25 +453,63 @@ mono_alc_invoke_resolve_using_resolve_satellite_nofail (MonoAssemblyLoadContext 
 	return result;
 }
 
+static void
+foo (void)
+{
+}
+
 MonoBoolean
 ves_icall_System_Reflection_LoaderAllocatorScout_Destroy (gpointer native)
 {
 	MonoMemoryManager *mem_manager = (MonoMemoryManager *)native;
+	MonoAssemblyLoadContext *alc;
 
 	MonoGCHandle loader_handle = mem_manager->loader_allocator_weak_handle;
 	if (mono_gchandle_get_target_internal (loader_handle))
 		return FALSE;
 
-	// FIXME:
-	g_assert (!mem_manager->is_generic);
+	if (mem_manager->is_generic) {
+		// FIXME: Generic memory managers might need to be destroyed in a specific order/together,
+		// hold ref counts on alcs etc.
+		//mono_mempool_stats (mem_manager->_mp);
+		//printf ("GMM: %p %d\n", mem_manager, mono_mempool_get_allocated (mem_manager->_mp));
+		MonoGenericMemoryManager *gmm = (MonoGenericMemoryManager*)mem_manager;
+		for (int i = 0; i < gmm->n_alcs; ++i) {
+			alc = gmm->alcs [i];
+			mono_alc_memory_managers_lock (alc);
+			g_ptr_array_remove (alc->generic_memory_managers, mem_manager);
+			mono_alc_memory_managers_unlock (alc);
+		}
+		// Use debug_unload=FALSE
+		mono_mem_manager_free (mem_manager, TRUE);
+		return TRUE;
+	}
 
-	MonoAssemblyLoadContext *alc = ((MonoSingletonMemoryManager*)mem_manager)->alc;
+	alc = ((MonoSingletonMemoryManager*)mem_manager)->alc;
 	g_assert (alc);
 
 	/*
 	 * The weak handle is NULL, meaning the managed LoaderAllocator object is dead, we can
 	 * free the native side.
 	 */
+	printf ("UNLOAD2: %s\n", alc->name);
+#if 0
+	{
+		static int count = 0;
+		count ++;
+		if (count > 50) {
+			mono_alc_get_default ()->memory_manager->memory_manager.frozen = FALSE;
+		} else if (count > 20) {
+			foo ();
+			mono_alc_get_default ()->memory_manager->memory_manager.frozen = TRUE;
+		}
+	}
+#endif
+	// FIXME: Queue
+	mono_alc_cleanup (alc);
+
+	alc = mono_alc_get_default ();
+	printf ("SIZE: %d\n", mono_mempool_get_allocated (alc->memory_manager->memory_manager._mp));
 
 	return TRUE;
 }

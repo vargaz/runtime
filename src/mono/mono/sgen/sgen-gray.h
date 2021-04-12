@@ -158,6 +158,8 @@ sgen_gray_object_queue_is_empty (SgenGrayQueue *queue)
 	return queue->first == NULL;
 }
 
+const char* sgen_client_vtable_get_name (GCVTable vtable);
+
 static inline MONO_ALWAYS_INLINE void
 GRAY_OBJECT_ENQUEUE (SgenGrayQueue *queue, GCObject *obj, SgenDescriptor desc, gboolean is_parallel)
 {

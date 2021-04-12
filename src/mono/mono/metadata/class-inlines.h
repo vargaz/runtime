@@ -131,6 +131,12 @@ m_class_is_interface (MonoClass *klass)
 }
 
 static inline gboolean
+m_class_is_array (MonoClass *klass)
+{
+	return m_class_get_rank (klass) != 0;
+}
+
+static inline gboolean
 m_class_is_gtd (MonoClass *klass)
 {
 	return mono_class_is_gtd (klass);

@@ -3531,6 +3531,9 @@ mono_metadata_clean_for_image (MonoImage *image)
 
 	//check_image_sets (image);
 
+	// FIXME:
+	return;
+
 	/*
 	 * The data structures could reference each other so we delete them in two phases.
 	 * This is required because of the hashing functions in gclass/ginst_cache.
@@ -3607,7 +3610,7 @@ free_generic_inst (MonoGenericInst *ginst)
 static void
 free_generic_class (MonoGenericClass *gclass)
 {
-	/* The gclass itself is allocated from the image set mempool */
+	/* The cached class itself is allocated from the same mempool */
 	if (gclass->cached_class && m_class_get_interface_id (gclass->cached_class))
 		mono_unload_interface_id (gclass->cached_class);
 }
@@ -3639,32 +3642,32 @@ mono_metadata_get_inflated_signature (MonoMethodSignature *sig, MonoGenericConte
 	MonoInflatedMethodSignature helper;
 	MonoInflatedMethodSignature *res;
 	CollectData data;
-	MonoImageSet *set;
 
 	helper.sig = sig;
 	helper.context.class_inst = context->class_inst;
 	helper.context.method_inst = context->method_inst;
 
 	collect_data_init (&data);
-
 	collect_inflated_signature_images (&helper, &data);
-
-	set = get_image_set (data.images, data.nimages);
-
+	MonoGenericMemoryManager *gen_mm = mono_mem_manager_get_generic (data.images, data.nimages);
+	MonoMemoryManager *mm = (MonoMemoryManager*)gen_mm;
 	collect_data_free (&data);
 
-	mono_image_set_lock (set);
+	mono_mem_manager_lock (mm);
 
-	res = (MonoInflatedMethodSignature *)g_hash_table_lookup (set->gsignature_cache, &helper);
+	// FIXME: update free_inflated_signature
+	if (!gen_mm->gsignature_cache)
+		gen_mm->gsignature_cache = g_hash_table_new_full (inflated_signature_hash, inflated_signature_equal, NULL, NULL); //(GDestroyNotify)free_inflated_signature);
+	res = (MonoInflatedMethodSignature *)g_hash_table_lookup (gen_mm->gsignature_cache, &helper);
 	if (!res) {
-		res = g_new0 (MonoInflatedMethodSignature, 1);
+		res = mono_mem_manager_alloc0 (mm, sizeof (MonoInflatedMethodSignature));
 		res->sig = sig;
 		res->context.class_inst = context->class_inst;
 		res->context.method_inst = context->method_inst;
-		g_hash_table_insert (set->gsignature_cache, res, res);
+		g_hash_table_insert (gen_mm->gsignature_cache, res, res);
 	}
 
-	mono_image_set_unlock (set);
+	mono_mem_manager_unlock (mm);
 
 	return res->sig;
 }

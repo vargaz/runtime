@@ -411,6 +411,7 @@ TYPED_HANDLE_DECL (MonoSafeHandle);
 struct _MonoReflectionType {
 	MonoObject object;
 	MonoType  *type;
+	MonoObject *m_keepalive;
 };
 
 /* Safely access System.Type from native code */
@@ -851,10 +852,11 @@ struct _MonoReflectionMethodBody {
 /* Safely access System.Reflection.MethodBody from native code */
 TYPED_HANDLE_DECL (MonoReflectionMethodBody);
 
-/* System.RuntimeAssembly */
+/* System.Reflection.RuntimeAssembly */
 struct _MonoReflectionAssembly {
 	MonoObject object;
 	MonoAssembly *assembly;
+	MonoObject *m_keepalive;
 };
 
 typedef struct {
@@ -1377,7 +1379,9 @@ TYPED_HANDLE_DECL (MonoManagedAssemblyLoadContext);
 
 typedef struct {
 	MonoObject object;
+	MonoObject *m_scout;
 	MonoArray *m_slots;
+	MonoArray *m_hashes;
 	int m_nslots;
 } MonoManagedLoaderAllocator;
 

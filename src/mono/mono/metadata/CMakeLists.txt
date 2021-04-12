@@ -125,6 +125,8 @@ set(metadata_common_sources
     mono-hash.h
     mono-conc-hash.c
     mono-conc-hash.h
+    weak-hash.c
+    weak-hash.h
     mono-perfcounters.c
     mono-perfcounters.h
     mono-perfcounters-def.h

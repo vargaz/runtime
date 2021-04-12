@@ -96,6 +96,7 @@
 	if (G_UNLIKELY (class_obj)) {
 		/* Just need to scan the pinned class object */
 		// FIXME:
+		//printf ("L: %p %s\n", start, sgen_client_vtable_get_name (vt));
 		GCObject *ptr_loc = class_obj;
 		HANDLE_PTR (&ptr_loc, obj);
 		g_assert (ptr_loc == class_obj);

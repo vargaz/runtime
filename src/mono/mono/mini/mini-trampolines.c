@@ -1404,13 +1404,22 @@ mono_create_delegate_trampoline_info (MonoClass *klass, MonoMethod *method)
 	MonoDelegateTrampInfo *tramp_info;
 	MonoClassMethodPair pair, *dpair;
 	guint32 code_size = 0;
+	MonoMemoryManager *mm_class, *mm_method;
+	MonoGenericMemoryManager *gen_mm;
 	MonoJitMemoryManager *jit_mm;
 
 	pair.klass = klass;
 	pair.method = method;
 
-	// FIXME: Use the proper memory manager
-	jit_mm = get_default_jit_mm ();
+	mm_class = m_class_get_mem_manager (klass);
+	if (method) {
+		mm_method = m_method_get_mem_manager (method);
+		gen_mm = mono_mem_manager_merge (mm_class, mm_method);
+		jit_mm = (MonoJitMemoryManager*)gen_mm->memory_manager.runtime_info;
+	} else {
+		jit_mm = jit_mm_for_class (klass);
+	}
+
 	jit_mm_lock (jit_mm);
 	tramp_info = (MonoDelegateTrampInfo *)g_hash_table_lookup (jit_mm->delegate_trampoline_hash, &pair);
 	jit_mm_unlock (jit_mm);

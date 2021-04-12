@@ -319,21 +319,26 @@ get_type_init_exception_for_vtable (MonoVTable *vtable)
 
 	ERROR_DECL (error);
 	MonoClass *klass = vtable->klass;
-	MonoMemoryManager *memory_manager = mono_mem_manager_get_ambient ();
+	MonoMemoryManager *mem_manager = m_class_get_mem_manager (vtable->klass);
 	MonoException *ex;
 	gchar *full_name;
 
 	if (!vtable->init_failed)
 		g_error ("Trying to get the init exception for a non-failed vtable of class %s", mono_type_get_full_name (klass));
+
+	mono_mem_manager_init_reflection_hash (mem_manager);
 	
 	/* 
 	 * If the initializing thread was rudely aborted, the exception is not stored
 	 * in the hash.
 	 */
 	ex = NULL;
-	mono_mem_manager_lock (memory_manager);
-	ex = (MonoException *)mono_g_hash_table_lookup (memory_manager->type_init_exception_hash, klass);
-	mono_mem_manager_unlock (memory_manager);
+	mono_mem_manager_lock (mem_manager);
+	if (mem_manager->collectible)
+		ex = (MonoException *)mono_weak_hash_table_lookup (mem_manager->weak_type_init_exception_hash, klass);
+	else
+		ex = (MonoException *)mono_g_hash_table_lookup (mem_manager->type_init_exception_hash, klass);
+	mono_mem_manager_unlock (mem_manager);
 
 	if (!ex) {
 		const char *klass_name_space = m_class_get_name_space (klass);
@@ -432,7 +437,7 @@ mono_runtime_class_init_full (MonoVTable *vtable, MonoError *error)
 		return TRUE;
 
 	MonoClass *klass = vtable->klass;
-	MonoMemoryManager *memory_manager = mono_mem_manager_get_ambient ();
+	MonoMemoryManager *mem_manager = m_class_get_mem_manager (vtable->klass);
 
 	MonoImage *klass_image = m_class_get_image (klass);
 	if (!mono_runtime_run_module_cctor (klass_image, error)) {
@@ -568,9 +573,13 @@ mono_runtime_class_init_full (MonoVTable *vtable, MonoError *error)
 			 * Store the exception object so it could be thrown on subsequent
 			 * accesses.
 			 */
-			mono_mem_manager_lock (memory_manager);
-			mono_g_hash_table_insert_internal (memory_manager->type_init_exception_hash, klass, exc_to_throw);
-			mono_mem_manager_unlock (memory_manager);
+			mono_mem_manager_init_reflection_hash (mem_manager);
+			mono_mem_manager_lock (mem_manager);
+			if (mem_manager->collectible)
+				mono_weak_hash_table_insert (mem_manager->weak_type_init_exception_hash, klass, exc_to_throw);
+			else
+				mono_g_hash_table_insert_internal (mem_manager->type_init_exception_hash, klass, exc_to_throw);
+			mono_mem_manager_unlock (mem_manager);
 		}
 
 		/* Signal to the other threads that we are done */
@@ -1810,23 +1819,32 @@ mono_method_add_generic_virtual_invocation (MonoVTable *vtable,
 	mono_loader_unlock ();
 }
 
-/* LOCKING: Assumes the loader lock is held */
+/*
+ * Allocate a slot in the LoaderAllocator.m_slots array.
+ * LOCKING: Assumes the loader lock is held.
+ */
 static int
 allocate_loader_alloc_slot (MonoManagedLoaderAllocator *loader_alloc)
 {
 	ERROR_DECL (error);
 	int res;
 
-	if (!loader_alloc->m_slots) {
+	if (!loader_alloc->m_slots || loader_alloc->m_nslots == mono_array_length_internal (loader_alloc->m_slots)) {
 		MonoClass *ac = mono_class_create_array (mono_get_object_class (), 1);
 		MonoVTable *vtable = mono_class_vtable_checked (ac, error);
 		mono_error_assert_ok (error);
 
 		/* Allocate pinned */
-		loader_alloc->m_slots = mono_array_new_specific_internal (vtable, 64, TRUE, error);
+		MonoArray *slots = mono_array_new_specific_internal (vtable, 64, TRUE, error);
+
+		if (loader_alloc->m_slots) {
+			/* Store the old array into the new one */
+			mono_array_setref_fast (slots, 0, loader_alloc->m_slots);
+			loader_alloc->m_nslots = 1;
+		}
+		MONO_OBJECT_SETREF_INTERNAL (loader_alloc, m_slots, slots);
 	}
-	// FIXME:
-	g_assert (loader_alloc->m_nslots < mono_array_length_internal (loader_alloc->m_slots));
+
 	res = loader_alloc->m_nslots;
 	loader_alloc->m_nslots ++;
 
@@ -1834,11 +1852,28 @@ allocate_loader_alloc_slot (MonoManagedLoaderAllocator *loader_alloc)
 }
 
 static void
+set_collectible_static_addr (MonoMemoryManager *mem_manager, MonoClassField *field, gpointer addr)
+{
+	/* Treat this as a special static field */
+	mono_mem_manager_lock (mem_manager);
+	if (!mem_manager->special_static_fields)
+		mem_manager->special_static_fields = g_hash_table_new (NULL, NULL);
+	g_hash_table_insert (mem_manager->special_static_fields, field, addr);
+	mono_mem_manager_unlock (mem_manager);
+	/* This marks the field as collectible static */
+	// FIXME: Won't work if assemblies are shared between alcs
+	field->offset = -2;
+}
+
+static int count;
+
+static void
 allocate_collectible_static_fields (MonoVTable *vt, MonoMemoryManager *mem_manager)
 {
 	MonoClass *klass = vt->klass;
 	MonoClassField *field;
 	MonoManagedLoaderAllocator *loader_alloc;
+	ERROR_DECL (error);
 
 	/*
 	 * References in static fields of a collectible alc shouldn't keep the ALC alive.
@@ -1850,12 +1885,18 @@ allocate_collectible_static_fields (MonoVTable *vt, MonoMemoryManager *mem_manag
 	loader_alloc = (MonoManagedLoaderAllocator*)mono_gchandle_get_target_internal (vt->loader_alloc);
 	g_assert (loader_alloc);
 
+	//printf ("FF: %s\n", mono_class_full_name (vt->klass));
+
 	mono_loader_lock ();
 
 	gpointer iter = NULL;
 	while ((field = mono_class_get_fields_internal (klass, &iter))) {
 		MonoType *type;
 
+#if 0
+		if (count > 47)
+			break;
+#endif
 		if (!(field->type->attrs & (FIELD_ATTRIBUTE_STATIC | FIELD_ATTRIBUTE_HAS_FIELD_RVA)))
 			continue;
 		if (field->type->attrs & FIELD_ATTRIBUTE_LITERAL)
@@ -1867,25 +1908,38 @@ allocate_collectible_static_fields (MonoVTable *vt, MonoMemoryManager *mem_manag
 
 		type = mono_type_get_underlying_type (field->type);
 		if (mono_type_is_reference (type)) {
+			//printf ("F: %s %s %d\n", mono_class_full_name (field->parent), field->name, count); count ++;
 			int slot = allocate_loader_alloc_slot (loader_alloc);
 			/* The array is pinned so this internal pointer is ok */
-			// FIXME: Stores into this would need gc barriers */
+			// FIXME: Stores into this would need gc barriers
+			// FIXME: How to decide with gshared
 			gpointer addr = mono_array_addr_internal (loader_alloc->m_slots, void*, slot);
 
-			/* Treat this as a special static field */
-			mono_mem_manager_lock (mem_manager);
-			if (!mem_manager->special_static_fields)
-				mem_manager->special_static_fields = g_hash_table_new (NULL, NULL);
-			g_hash_table_insert (mem_manager->special_static_fields, field, addr);
-			mono_mem_manager_unlock (mem_manager);
-			/* This marks the field as collectible static */
-			field->offset = -2;
+			set_collectible_static_addr (mem_manager, field, addr);
 		} else if (mono_type_is_primitive (type)) {
 		} else {
 			MonoClass *fclass = mono_class_from_mono_type_internal (field->type);
-			if (m_class_has_references (fclass))
-				// FIXME:
-				g_assert_not_reached ();
+			if (m_class_has_references (fclass) && field->offset != -2) {
+				//printf ("F2: %p %s %s %d\n", field->parent, mono_class_full_name (field->parent), field->name, count); count ++;
+				/*
+				 * Allocate a boxed object and use the unboxed address as the
+				 * address of the static var.
+				 */
+				//printf ("F: %s %d\n", mono_class_full_name (fclass), field->offset);
+				/* Set this early to prevent recursion */
+				field->offset = -2;
+				MonoObject *boxed = mono_object_new_pinned (fclass, error);
+				mono_error_assert_ok (error);
+
+				int slot = allocate_loader_alloc_slot (loader_alloc);
+				mono_array_setref_fast (loader_alloc->m_slots, slot, boxed);
+
+				/* The object is pinned so this internal pointer is ok */
+				// FIXME: Stores into this would need gc barriers
+				gpointer addr = mono_object_unbox_internal (boxed);
+
+				set_collectible_static_addr (mem_manager, field, addr);
+			}
 		}
 	}
 
@@ -2863,6 +2917,9 @@ mono_field_static_set_value_internal (MonoVTable *vt, MonoClassField *field, voi
 	if ((field->type->attrs & FIELD_ATTRIBUTE_LITERAL))
 		return;
 
+	// FIXME:
+	g_assert (field->offset != -2);
+
 	dest = mono_static_field_get_addr (vt, field);
 	mono_copy_value (field->type, dest, value, value && field->type->type == MONO_TYPE_PTR);
 }
@@ -2922,6 +2979,13 @@ mono_field_get_addr (MonoObject *obj, MonoVTable *vt, MonoClassField *field)
 		return (guint8*)obj + field->offset;
 }
 
+static gboolean
+is_collectible_ref_static (MonoClassField *field)
+{
+	//return m_class_get_mem_manager (field->parent)->collectible && (MONO_TYPE_IS_REFERENCE (field->type) || m_class_has_references (mono_class_from_mono_type_internal (field->type)));
+	return field->offset == -2;
+}
+
 guint8*
 mono_static_field_get_addr (MonoVTable *vt, MonoClassField *field)
 {
@@ -2936,8 +3000,7 @@ mono_static_field_get_addr (MonoVTable *vt, MonoClassField *field)
 		gpointer addr = mono_special_static_field_get_offset (field, error);
 		mono_error_assert_ok (error);
 		src = (guint8 *)mono_get_special_static_data (GPOINTER_TO_UINT (addr));
-	} else if (field->offset == -2) {
-		/* Collectible static */
+	} else if (is_collectible_ref_static (field)) {
 		ERROR_DECL (error);
 		gpointer addr = mono_special_static_field_get_offset (field, error);
 		mono_error_assert_ok (error);

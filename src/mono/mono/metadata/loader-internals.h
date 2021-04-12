@@ -11,6 +11,7 @@
 #include <mono/metadata/mempool-internals.h>
 #include <mono/metadata/mono-conc-hash.h>
 #include <mono/metadata/mono-hash.h>
+#include <mono/metadata/weak-hash.h>
 #include <mono/metadata/object-forward.h>
 #include <mono/utils/mono-codeman.h>
 #include <mono/utils/mono-coop-mutex.h>
@@ -165,7 +166,6 @@ struct _MonoMemoryManager {
 	MonoGCHandle loader_allocator_handle;
 	MonoGCHandle loader_allocator_weak_handle;
 
-	// !!! REGISTERED AS GC ROOTS !!!
 	// Hashtables for Reflection handles
 	MonoGHashTable *type_hash;
 	MonoConcGHashTable *refobject_hash;
@@ -173,7 +173,11 @@ struct _MonoMemoryManager {
 	MonoGHashTable *type_init_exception_hash;
 	// Maps delegate trampoline addr -> delegate object
 	//MonoGHashTable *delegate_hash_table;
-	// End of GC roots
+
+	/* Same hashes for collectible mem managers */
+	MonoWeakHashTable *weak_type_hash;
+	MonoWeakHashTable *weak_refobject_hash;
+	MonoWeakHashTable *weak_type_init_exception_hash;
 };
 
 struct _MonoSingletonMemoryManager {
@@ -309,6 +313,9 @@ void
 mono_mem_manager_free_objects_singleton (MonoSingletonMemoryManager *memory_manager);
 
 void
+mono_mem_manager_free (MonoMemoryManager *memory_manager, gboolean debug_unload);
+
+void
 mono_mem_manager_lock (MonoMemoryManager *memory_manager);
 
 void
@@ -352,10 +359,13 @@ MonoGenericMemoryManager *
 mono_mem_manager_get_generic (MonoImage **images, int nimages);
 
 MonoGenericMemoryManager*
-mono_mem_manager_merge (MonoGenericMemoryManager *mm1, MonoGenericMemoryManager *mm2);
+mono_mem_manager_merge (MonoMemoryManager *mm1, MonoMemoryManager *mm2);
 
 MonoGCHandle
 mono_mem_manager_get_loader_alloc (MonoMemoryManager *mem_manager);
+
+void
+mono_mem_manager_init_reflection_hash (MonoMemoryManager *mem_manager);
 
 G_END_DECLS
 
