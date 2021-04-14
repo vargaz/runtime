@@ -86,9 +86,8 @@ cache_object_handle (MonoMemoryManager *mem_manager, MonoClass *klass, gpointer 
 	return obj;
 }
 
-// FIXME: Mem manager
-#define CACHE_OBJECT(t,p,o,k) ((t) (cache_object (mono_mem_manager_get_ambient (), (k), (p), (o))))
-#define CACHE_OBJECT_HANDLE(t,p,o,k) (MONO_HANDLE_CAST (t, cache_object_handle (mono_mem_manager_get_ambient (), (k), (p), (o))))
+#define CACHE_OBJECT(t,mem_manager,p,o,k) ((t) (cache_object ((mem_manager), (k), (p), (o))))
+#define CACHE_OBJECT_HANDLE(t,mem_manager,p,o,k) (MONO_HANDLE_CAST (t, cache_object_handle ((mem_manager), (k), (p), (o))))
 
 static inline MonoObjectHandle
 check_object_handle (MonoMemoryManager *mem_manager, MonoClass *klass, gpointer item)
