@@ -3181,7 +3181,7 @@ free_generic_inst (MonoGenericInst *ginst)
 {
 	int i;
 
-	/* The ginst itself is allocated from the image set mempool */
+	/* The ginst itself is allocated from the mem manager */
 	for (i = 0; i < ginst->type_argc; ++i)
 		mono_metadata_free_type (ginst->type_argv [i]);
 }
@@ -3189,7 +3189,7 @@ free_generic_inst (MonoGenericInst *ginst)
 static void
 free_generic_class (MonoGenericClass *gclass)
 {
-	/* The gclass itself is allocated from the image set mempool */
+	/* The gclass itself is allocated from the mem manager */
 	if (gclass->cached_class && m_class_get_interface_id (gclass->cached_class))
 		mono_unload_interface_id (gclass->cached_class);
 }
