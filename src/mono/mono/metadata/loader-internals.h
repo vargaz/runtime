@@ -156,6 +156,10 @@ struct _MonoMemoryManager {
 	/* Information maintained by the execution engine */
 	gpointer runtime_info;
 
+	// Handles pointing to the corresponding LoaderAllocator object
+	MonoGCHandle loader_allocator_handle;
+	MonoGCHandle loader_allocator_weak_handle;
+
 	// Hashtables for Reflection handles
 	MonoGHashTable *type_hash;
 	MonoConcGHashTable *refobject_hash;
@@ -340,6 +344,9 @@ mono_mem_manager_get_generic (MonoImage **images, int nimages);
 
 MonoMemoryManager*
 mono_mem_manager_merge (MonoMemoryManager *mm1, MonoMemoryManager *mm2);
+
+MonoGCHandle
+mono_mem_manager_get_loader_alloc (MonoMemoryManager *mem_manager);
 
 G_END_DECLS
 

@@ -1378,6 +1378,11 @@ typedef struct {
 
 TYPED_HANDLE_DECL (MonoManagedAssemblyLoadContext);
 
+typedef struct {
+	MonoObject object;
+	MonoObject *m_scout;
+} MonoManagedLoaderAllocator;
+
 /* All MonoInternalThread instances should be pinned, so it's safe to use the raw ptr.  However
  * for uniformity, icall wrapping will make handles anyway.  So this is the method for getting the payload.
  */
