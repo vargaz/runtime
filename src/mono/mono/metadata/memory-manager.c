@@ -190,6 +190,17 @@ memory_manager_delete (MonoMemoryManager *memory_manager, gboolean debug_unload)
 	if (!memory_manager->freeing)
 		memory_manager_delete_objects (memory_manager);
 
+	if (memory_manager->gclass_cache) {
+		/*
+		 * Most memory held by these hashes is allocated from the
+		 * mempool, but there might some extra logic needed
+		 * like freeing interface ids.
+		 * The free functions of the hashes are in metadata.c.
+		 */
+		mono_conc_hashtable_destroy (memory_manager->gclass_cache);
+		// FIXME: Free the rest
+	}
+
 	mono_coop_mutex_destroy (&memory_manager->lock);
 
 	// FIXME: Free generics caches
