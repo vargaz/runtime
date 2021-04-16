@@ -231,8 +231,6 @@ mono_mem_manager_free_objects (MonoMemoryManager *memory_manager)
 void
 mono_mem_manager_free (MonoMemoryManager *memory_manager, gboolean debug_unload)
 {
-	g_assert (!memory_manager->is_generic);
-
 	memory_manager_delete (memory_manager, debug_unload);
 	g_free (memory_manager);
 }
@@ -683,4 +681,12 @@ mono_mem_manager_init_reflection_hashes (MonoMemoryManager *mem_manager)
 			mono_gchandle_free_internal (holder_handles [i]);
 	}
 	mono_mem_manager_unlock (mem_manager);
+}
+
+void
+mono_mem_manager_start_unload (MonoMemoryManager *mem_manager)
+{
+	/* Free the strong handle so the LoaderAllocator object can be freed */
+	MonoGCHandle loader_handle = mem_manager->loader_allocator_handle;
+	mono_gchandle_free_internal (loader_handle);
 }
