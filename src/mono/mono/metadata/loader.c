@@ -776,6 +776,11 @@ mono_method_get_signature_checked (MonoMethod *method, MonoImage *image, guint32
 		if (!is_ok (error))
 			return NULL;
 
+		if (mono_metadata_signature_equal (sig, inflated)) {
+			mono_metadata_free_inflated_signature (inflated);
+			return sig;
+		}
+
 		cached = mono_metadata_get_inflated_signature (sig, context);
 		if (cached != sig)
 			mono_metadata_free_inflated_signature (sig);
