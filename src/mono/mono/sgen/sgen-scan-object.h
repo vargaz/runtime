@@ -91,6 +91,7 @@
 		g_assert_not_reached ();
 	}
 
+#ifndef SCAN_OBJECT_NOVTABLE
 	GCVTable vt = SGEN_LOAD_VTABLE ((GCObject*)start);
 	GCObject *class_obj = sgen_vtable_get_class_obj (vt);
 	if (G_UNLIKELY (class_obj)) {
@@ -100,6 +101,7 @@
 		HANDLE_PTR (&ptr_loc, obj);
 		g_assert (ptr_loc == class_obj);
 	}
+#endif
 }
 
 #undef SCAN_OBJECT_NOSCAN
