@@ -1551,7 +1551,13 @@ mono_mem_manager_get_ambient (void)
 static inline MonoMemoryManager*
 m_image_get_mem_manager (MonoImage *image)
 {
-	return (MonoMemoryManager*)mono_image_get_alc (image)->memory_manager;
+	MonoAssemblyLoadContext *alc = mono_image_get_alc (image);
+
+	if (alc)
+		return (MonoMemoryManager*)alc->memory_manager;
+	else
+		/* Dynamic assemblies */
+		return mono_mem_manager_get_ambient ();
 }
 
 static inline void *
@@ -1573,12 +1579,7 @@ m_class_get_mem_manager (MonoClass *klass)
 		return mono_class_get_generic_class (klass)->owner;
 	if (m_class_get_rank (klass))
 		return m_class_get_mem_manager (m_class_get_element_class (klass));
-	MonoAssemblyLoadContext *alc = mono_image_get_alc (m_class_get_image (klass));
-	if (alc)
-		return alc->memory_manager;
-	else
-		/* Dynamic assemblies */
-		return mono_mem_manager_get_ambient ();
+	return m_image_get_mem_manager (m_class_get_image (klass));
 }
 
 static inline void *
