@@ -232,16 +232,11 @@ memory_manager_delete (MonoMemoryManager *memory_manager, gboolean debug_unload)
 	free_hash (&mm->szarray_cache);
 	free_hash (&mm->array_cache);
 	free_hash (&mm->ptr_cache);
+	free_hash (&mm->aggregate_modifiers_cache);
 	mono_wrapper_caches_free (&mm->wrapper_caches);
-#if 0
-	// FIXME: Free the rest
-	MonoWrapperCaches wrapper_caches;
-
-	GHashTable *aggregate_modifiers_cache;
-
-	/* Indexed by MonoGenericParam pointers */
-	GHashTable **gshared_types;
-#endif
+	for (int i = 0; i < mm->gshared_types_len; ++i)
+		free_hash (&mm->gshared_types [i]);
+	g_free (mm->gshared_types);
 
 	mono_coop_mutex_destroy (&memory_manager->lock);
 
@@ -250,6 +245,7 @@ memory_manager_delete (MonoMemoryManager *memory_manager, gboolean debug_unload)
 	if (debug_unload) {
 		mono_mempool_invalidate (memory_manager->_mp);
 		mono_code_manager_invalidate (memory_manager->code_mp);
+		memset (memory_manager, 0x42, sizeof (MonoMemoryManager));
 	} else {
 #ifndef DISABLE_PERFCOUNTERS
 		/* FIXME: use an explicit subtraction method as soon as it's available */
