@@ -3,6 +3,7 @@
 
   <UsingTask TaskName="PInvokeTableGenerator" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
   <UsingTask TaskName="IcallTableGenerator" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
+  <UsingTask TaskName="WasmGenerateNinja" AssemblyFile="$(WasmAppBuilderTasksAssemblyPath)" />
 
   <PropertyGroup>
     <_WasmBuildNativeCoreDependsOn>
@@ -242,7 +243,7 @@
 
     <WriteLinesToFile Lines="@(_EmccCFlags)" File="$(_EmccCompileRsp)" Overwrite="true" WriteOnlyWhenDifferent="true" />
 
-    <Message Text="Compiling native assets with emcc. This may take a while ..." Importance="High" />
+    <Message Text="Compiling native assets with emcc. This may take a while ..." Importance="High" Condition="'$(_WasmNinja)' != 'true'" />
     <Exec Command='emcc "@$(_EmccDefaultFlagsRsp)" "@$(_EmccCompileRsp)" "%(_WasmObjectsToBuild.Identity)" -c -o "%(_WasmObjectsToBuild.OutputPath)"' EnvironmentVariables="@(EmscriptenEnvVars)" />
   </Target>
 
@@ -275,9 +276,28 @@
 
     <WriteLinesToFile Lines="@(_EmccLDFlags)" File="$(_EmccLinkRsp)" Overwrite="true" WriteOnlyWhenDifferent="true" />
     <Message Text="Running emcc with @(_EmccLDFlags->'%(Identity)', ' ')" Importance="Low" />
-    <Exec Command='emcc "@$(_EmccDefaultFlagsRsp)" "@$(_EmccLinkRsp)"' EnvironmentVariables="@(EmscriptenEnvVars)" />
+    <Exec Command='emcc "@$(_EmccDefaultFlagsRsp)" "@$(_EmccLinkRsp)"' EnvironmentVariables="@(EmscriptenEnvVars)" Condition="'$(_WasmNinja)' != 'true'" />
 
-    <Exec Command='wasm-opt$(_ExeExt) --strip-dwarf "$(_WasmIntermediateOutputPath)dotnet.wasm" -o "$(_WasmIntermediateOutputPath)dotnet.wasm"' Condition="'$(WasmNativeStrip)' == 'true'" IgnoreStandardErrorWarningFormat="true" EnvironmentVariables="@(EmscriptenEnvVars)" />
+    <Exec Command='wasm-opt$(_ExeExt) --strip-dwarf "$(_WasmIntermediateOutputPath)dotnet.wasm" -o "$(_WasmIntermediateOutputPath)dotnet.wasm"' Condition="'$(WasmNativeStrip)' == 'true' and '$(_WasmNinja)' != 'true'" IgnoreStandardErrorWarningFormat="true" EnvironmentVariables="@(EmscriptenEnvVars)" />
+
+    <WasmGenerateNinja
+      BinDir="$(WasmAppDir)"
+      BuildDir="$(_WasmIntermediateOutputPath)"
+      EmsdkPath="$(EMSDK_PATH)"
+      EmccCFlags="@(_EmccCFlags);@$(_EmccDefaultFlagsRsp)"
+      EmccLDFlags="@(_EmccLDFlags)"
+      RspFile="$(_EmccDefaultFlagsRsp)"
+      JSSources="@(_DotnetJSSrcFile)"
+      WasmObjects="@(_WasmObjects)"
+      AOTAssemblies="@(_WasmAssembliesInternal)"
+      AOTCompilerPath="$(_MonoAotCrossCompilerPath)"
+      Condition="'$(_WasmNinja)' == 'true'"
+      />
+    <Message Text="NINJA: ninja -C $(_WasmIntermediateOutputPath) $(NinjaArgs)" Importance="High"/>
+    <Exec
+      Command="ninja -C $(_WasmIntermediateOutputPath) $(NinjaArgs)"
+      Condition="'$(_WasmNinja)' == 'true'"
+      />
   </Target>
 
   <Target Name="_CompleteWasmBuildNative">
